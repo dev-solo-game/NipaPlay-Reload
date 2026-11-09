@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:nipaplay/models/bangumi_model.dart';
 import 'package:nipaplay/models/quark/quark_account.dart';
@@ -15,6 +16,20 @@ import 'package:nipaplay/services/quark/quark_metadata_scraper.dart';
 import 'package:nipaplay/services/quark/quark_scan_pacer.dart';
 import 'package:nipaplay/utils/media_source_utils.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+typedef _QuarkDirectoryPath = List<({String fid, String name})>;
+
+class _QuarkScanTraversal {
+  _QuarkScanTraversal(QuarkMountFolder folder)
+      : directories = Queue<_QuarkDirectoryPath>()
+          ..add([(fid: folder.fid, name: folder.name)]),
+        visited = {folder.fid};
+
+  final Queue<_QuarkDirectoryPath> directories;
+  final Set<String> visited;
+  final entries = <String, QuarkCatalogItem>{};
+  final startedAt = DateTime.now();
+}
 
 /// 夸克网盘业务逻辑服务单例
 class QuarkService extends ChangeNotifier {
@@ -90,6 +105,8 @@ class QuarkService extends ChangeNotifier {
   int get scanRequestMilliseconds => _scanRequestMilliseconds;
   Timer? _autoScanTimer;
   DateTime? _scanBlockedUntil;
+  ({String mountId, DateTime expiresAt, _QuarkScanTraversal traversal})?
+      _pausedScan;
 
   @override
   void dispose() {
@@ -194,6 +211,7 @@ class QuarkService extends ChangeNotifier {
     final credentials = cookie.trim();
     if (credentials.isEmpty) throw StateError('夸克登录凭证为空');
     final generation = ++_sessionGeneration;
+    _pausedScan = null;
     final verifiedCookie = await _client.validateSession(credentials);
     _checkSession(generation);
     _urlCache.clear();
@@ -217,6 +235,7 @@ class QuarkService extends ChangeNotifier {
   /// 登出并清理当前账号
   Future<void> logout() async {
     _sessionGeneration++;
+    _pausedScan = null;
     _currentAccount = null;
     _catalogAccount = null;
     _catalogByMount.clear();
@@ -240,6 +259,7 @@ class QuarkService extends ChangeNotifier {
   /// 移除挂载目录
   Future<void> removeMountFolder(String fid) async {
     for (final folder in _mountFolders.where((folder) => folder.fid == fid)) {
+      if (_pausedScan?.mountId == folder.id) _pausedScan = null;
       _catalogByMount.remove(folder.id);
       _autoAttempts.remove(folder.id);
     }
@@ -251,8 +271,15 @@ class QuarkService extends ChangeNotifier {
   }
 
   /// 列出夸克目录下的所有内容
-  Future<List<QuarkFile>> listFiles(
+  Future<List<QuarkFile>> listFiles(String pdirFid) async {
+    final files = <QuarkFile>[];
+    await _readDirectoryPages(pdirFid, onPage: files.addAll);
+    return files;
+  }
+
+  Future<void> _readDirectoryPages(
     String pdirFid, {
+    required FutureOr<void> Function(List<QuarkFile>) onPage,
     Future<void> Function()? beforePage,
   }) async {
     if (!isLoggedIn) {
@@ -260,7 +287,7 @@ class QuarkService extends ChangeNotifier {
     }
 
     final generation = _sessionGeneration;
-    final files = <QuarkFile>[];
+    var received = 0;
     for (var page = 1;; page++) {
       if (beforePage != null) await beforePage();
       _checkSession(generation);
@@ -271,9 +298,11 @@ class QuarkService extends ChangeNotifier {
       );
       _checkSession(generation);
       final pageFiles = result['files'] as List<QuarkFile>;
-      files.addAll(pageFiles);
-      if (pageFiles.isEmpty || files.length >= (result['total'] as int)) {
-        return files;
+      if (pageFiles.isEmpty) return;
+      await onPage(pageFiles);
+      received += pageFiles.length;
+      if (received >= (result['total'] as int)) {
+        return;
       }
     }
   }
@@ -557,19 +586,22 @@ class QuarkService extends ChangeNotifier {
     final scope = _catalogAccount;
     if (scope == null) throw StateError('夸克索引尚未初始化');
     final generation = _sessionGeneration;
-    final requestInterval = Duration(seconds: _scanRequestSeconds);
+    final requestInterval = Duration(milliseconds: _scanRequestMilliseconds);
     final existing = {
       for (final item
           in _catalogByMount[folder.id] ?? const <QuarkCatalogItem>[])
         item.fid: item
     };
-    final entries = <String, QuarkCatalogItem>{};
-    final directories = Queue<List<({String fid, String name})>>()
-      ..add([(fid: folder.fid, name: folder.name)]);
-    final visited = <String>{folder.fid};
-    final now = DateTime.now();
-    var nextCheckpoint = now;
-    var changed = false;
+    final paused = _pausedScan;
+    final resuming = paused != null &&
+        paused.mountId == folder.id &&
+        paused.expiresAt.isAfter(DateTime.now());
+    final traversal = resuming ? paused.traversal : _QuarkScanTraversal(folder);
+    if (paused?.mountId == folder.id) _pausedScan = null;
+    final entries = traversal.entries;
+    final directories = traversal.directories;
+    var nextCheckpoint = DateTime.now();
+    var hasUnpublishedChanges = false;
 
     void checkScan() {
       _checkSession(generation);
@@ -588,66 +620,96 @@ class QuarkService extends ChangeNotifier {
 
     _scanningFolderId = folder.id;
     _scheduleAutoScan();
-    _scanningStatus = '正在扫描 ${folder.name}';
+    _scanningStatus = resuming ? '正在继续扫描 ${folder.name}' : '正在扫描 ${folder.name}';
     notifyListeners();
     try {
       while (directories.isNotEmpty) {
-        final path = directories.removeLast();
-        final progress = '已发现 ${entries.length} 个视频';
-        final files = await listFiles(path.last.fid, beforePage: () async {
-          checkScan();
-          await _scanPacer.waitForTurn(
-            interval: requestInterval,
-            onWait: (wait) {
-              final seconds =
-                  (wait.inMicroseconds / Duration.microsecondsPerSecond).ceil();
-              _scanningStatus = '约 $seconds 秒后继续请求目录，$progress';
-              notifyListeners();
-            },
-          );
-          checkScan();
-          _scanningStatus = '正在扫描 ${path.last.name}，$progress';
-          notifyListeners();
-        });
+        final path = directories.last;
+        final directoryEntries = <String, QuarkCatalogItem>{};
+        final children = <({String fid, String name})>[];
         final relativeDirectory = path.skip(1).map((dir) => dir.name).join('/');
-        for (final file in files) {
-          if (file.fid.isEmpty) continue;
-          if (file.isDir && visited.add(file.fid)) {
-            directories.add([...path, (fid: file.fid, name: file.fileName)]);
-          } else if (file.isVideo) {
-            final previous = existing[file.fid];
-            final relativePath = relativeDirectory.isEmpty
-                ? file.fileName
-                : '$relativeDirectory/${file.fileName}';
-            if (previous != null &&
-                previous.relativePath == relativePath &&
-                previous.size == file.fileSize &&
-                previous.modifiedAt == file.updatedAt.millisecondsSinceEpoch) {
-              entries[file.fid] = previous;
-              continue;
-            }
-            changed = true;
-            entries[file.fid] = QuarkCatalogItem.parse(
-              fid: file.fid,
-              fileName: file.fileName,
-              directories: path,
-              size: file.fileSize,
-              modifiedAt: file.updatedAt.millisecondsSinceEpoch,
-              addedAt: previous?.addedAt ?? now.millisecondsSinceEpoch,
+        await _readDirectoryPages(
+          path.last.fid,
+          beforePage: () async {
+            checkScan();
+            final progress =
+                '已发现 ${entries.length + directoryEntries.length} 个视频';
+            await _scanPacer.waitForTurn(
+              interval: requestInterval,
+              onWait: (wait) {
+                final milliseconds =
+                    (wait.inMicroseconds / Duration.microsecondsPerMillisecond)
+                        .ceil();
+                _scanningStatus = '约 $milliseconds 毫秒后继续请求目录，$progress';
+                notifyListeners();
+              },
             );
+            checkScan();
+            _scanningStatus = '正在扫描 ${path.last.name}，$progress';
+            notifyListeners();
+          },
+          onPage: (files) async {
+            for (final file in files) {
+              if (file.fid.isEmpty) continue;
+              if (file.isDir) {
+                children.add((fid: file.fid, name: file.fileName));
+                continue;
+              }
+              if (!file.isVideo) continue;
+
+              final previous = existing[file.fid];
+              final relativePath = relativeDirectory.isEmpty
+                  ? file.fileName
+                  : '$relativeDirectory/${file.fileName}';
+              final modifiedAt = file.updatedAt.millisecondsSinceEpoch;
+              if (previous != null &&
+                  previous.relativePath == relativePath &&
+                  previous.size == file.fileSize &&
+                  previous.modifiedAt == modifiedAt) {
+                directoryEntries[file.fid] = previous;
+                continue;
+              }
+              hasUnpublishedChanges = true;
+              directoryEntries[file.fid] = QuarkCatalogItem.parse(
+                fid: file.fid,
+                fileName: file.fileName,
+                directories: path,
+                size: file.fileSize,
+                modifiedAt: modifiedAt,
+                addedAt: previous?.addedAt ??
+                    traversal.startedAt.millisecondsSinceEpoch,
+              );
+            }
+            if (hasUnpublishedChanges &&
+                !DateTime.now().isBefore(nextCheckpoint)) {
+              // Publish additions early. Only a complete traversal may remove items.
+              await persist(
+                {...existing, ...entries, ...directoryEntries}
+                    .values
+                    .toList(growable: false),
+              );
+              nextCheckpoint = DateTime.now().add(const Duration(seconds: 45));
+              hasUnpublishedChanges = false;
+            }
+          },
+        );
+        checkScan();
+        entries.addAll(directoryEntries);
+        directories.removeLast();
+        // A retry restarts this directory at page one if any page failed.
+        for (final child in children) {
+          if (traversal.visited.add(child.fid)) {
+            directories.add([...path, child]);
           }
-        }
-        if (changed && !DateTime.now().isBefore(nextCheckpoint)) {
-          // Only a successful traversal may remove entries from the old index.
-          await persist(
-              {...existing, ...entries}.values.toList(growable: false));
-          nextCheckpoint = DateTime.now().add(const Duration(seconds: 45));
-          changed = false;
         }
       }
       final indexed = entries.values.toList(growable: false);
-      await persist(indexed);
-      final enriched = await _scrapeMetadata(indexed, checkScan);
+      final published = _catalogByMount[folder.id];
+      if (published == null ||
+          published.length != indexed.length ||
+          published.any((item) => !identical(item, entries[item.fid]))) {
+        await persist(indexed);
+      }
       checkScan();
       final index =
           _mountFolders.indexWhere((mounted) => mounted.id == folder.id);
@@ -656,16 +718,31 @@ class QuarkService extends ChangeNotifier {
         lastScanTime: DateTime.now(),
       );
       await _persistMountFolders();
+      checkScan();
+      notifyListeners();
+      final enriched = await _scrapeMetadata(indexed, checkScan);
       return {
         'total': indexed.length,
         'works': indexed.map((item) => item.workKey).toSet().length,
         'enriched': enriched,
       };
-    } on QuarkRateLimitException catch (error) {
-      _scanBlockedUntil = DateTime.now().add(error.retryAfter);
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setInt(
-          _scanBackoffKey, _scanBlockedUntil!.millisecondsSinceEpoch);
+    } catch (error) {
+      if ((error is DioException || error is QuarkRateLimitException) &&
+          directories.isNotEmpty &&
+          _sessionGeneration == generation &&
+          _mountFolders.any((mounted) => mounted.id == folder.id)) {
+        _pausedScan = (
+          mountId: folder.id,
+          expiresAt: DateTime.now().add(const Duration(minutes: 15)),
+          traversal: traversal,
+        );
+      }
+      if (error is QuarkRateLimitException) {
+        final blockedUntil = DateTime.now().add(error.retryAfter);
+        _scanBlockedUntil = blockedUntil;
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setInt(_scanBackoffKey, blockedUntil.millisecondsSinceEpoch);
+      }
       rethrow;
     } finally {
       _scanningFolderId = null;
