@@ -11,23 +11,23 @@ class QuarkScanPacer {
 
   final DateTime Function() _now;
   final Future<void> Function(Duration) _delay;
-  DateTime? _nextRequest;
+  DateTime? _lastRequest;
   int _requests = 0;
 
   Future<void> waitForTurn({
     Duration? interval,
     void Function(Duration)? onWait,
   }) async {
-    final wait = _nextRequest?.difference(_now());
+    final spacing = interval ??
+        (_requests % 10 == 0
+            ? const Duration(seconds: 30)
+            : const Duration(seconds: 2));
+    final wait = _lastRequest?.add(spacing).difference(_now());
     if (wait != null && wait > Duration.zero) {
       onWait?.call(wait);
       await _delay(wait);
     }
     _requests++;
-    final spacing = interval ??
-        (_requests % 10 == 0
-            ? const Duration(seconds: 30)
-            : const Duration(seconds: 2));
-    _nextRequest = _now().add(spacing);
+    _lastRequest = _now();
   }
 }

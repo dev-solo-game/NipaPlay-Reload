@@ -92,15 +92,17 @@ void main() {
       },
     );
 
+    const interval = Duration(milliseconds: 725);
     for (var page = 0; page < 12; page++) {
       await pacer.waitForTurn(
-        interval: const Duration(seconds: 3),
+        interval: interval,
         onWait: waits.add,
       );
     }
+    await pacer.waitForTurn(interval: Duration.zero, onWait: waits.add);
 
-    expect(waits, List.filled(11, const Duration(seconds: 3)));
-    expect(now, DateTime(2026).add(const Duration(seconds: 33)));
+    expect(waits, List.filled(11, interval));
+    expect(now, DateTime(2026).add(interval * 11));
   });
 
   test('TMDB selects a unique exact film match using the folder year',
@@ -156,7 +158,7 @@ void main() {
     expect(await history.getAllWatchHistory(), isEmpty);
   });
 
-  test('a deep scan uses directory pages only and restores its playable index',
+  test('a paged deep scan publishes early, resumes, and restores its index',
       () async {
     final root = await Directory.systemTemp.createTemp('quark-scan-');
     StorageService.debugAppStorageDirectoryOverride = root;
@@ -168,41 +170,61 @@ void main() {
     SharedPreferences.setMockInitialValues({
       'quark_saved_account': jsonEncode({'cookie': '__uid=test; __pus=mock'}),
       'quark_mount_folders': [jsonEncode(folder.toJson())],
+      'quark_scan_request_seconds': 3,
     });
 
     final drivePaths = <String>[];
+    final drivePages = <({int directory, int page})>[];
+    var interrupted = false;
     drive.interceptors.add(InterceptorsWrapper(onRequest: (request, handler) {
       drivePaths.add(request.uri.path);
       final parent =
           int.tryParse(request.queryParameters['pdir_fid']?.toString() ?? '');
-      final files = parent == null
-          ? const []
-          : parent < 7
-              ? [
-                  {
-                    'fid': '${parent + 1}',
-                    'file': false,
-                    'file_name': switch (parent) {
-                      5 => '例剧 (2024)',
-                      6 => 'Season 02',
-                      _ => '目录 $parent',
-                    },
-                  },
-                ]
-              : [
-                  {
-                    'fid': 'MediaFID',
-                    'file': true,
-                    'file_name': '例剧 - S02E03-1.mkv',
-                    'size': 1234,
-                    'updated_at': 1000,
-                  },
-                ];
+      final page = request.queryParameters['_page'] as int? ?? 1;
+      if (parent != null) drivePages.add((directory: parent, page: page));
+      if (parent == 7 && page == 2 && !interrupted) {
+        interrupted = true;
+        handler.reject(DioException(
+          requestOptions: request,
+          type: DioExceptionType.connectionError,
+        ));
+        return;
+      }
+      final List<Map<String, Object>> files;
+      if (parent == null) {
+        files = [];
+      } else if (parent < 7) {
+        files = [
+          {
+            'fid': '${parent + 1}',
+            'file': false,
+            'file_name': switch (parent) {
+              5 => '例剧 (2024)',
+              6 => 'Season 02',
+              _ => '目录 $parent',
+            },
+          },
+        ];
+      } else if (page == 1) {
+        files = [
+          {
+            'fid': interrupted ? 'MediaFID' : 'StaleFID',
+            'file': true,
+            'file_name': '例剧 - S02E03-1.mkv',
+            'size': 1234,
+            'updated_at': 1000,
+          },
+        ];
+      } else {
+        files = [
+          {'fid': 'text', 'file': true, 'file_name': 'readme.txt'}
+        ];
+      }
       handler.resolve(Response(requestOptions: request, statusCode: 200, data: {
         'status': 200,
         'code': 0,
         'data': parent == null ? <String, dynamic>{} : {'list': files},
-        'metadata': {'_total': files.length},
+        'metadata': {'_total': parent == 7 ? 2 : files.length},
       }));
     }));
     final metadataPaths = <String>[];
@@ -239,15 +261,35 @@ void main() {
 
     await service.initialize();
     expect(service.autoScanHours, 0);
-    expect(service.scanRequestSeconds, 5);
-    await service.setScanRequestSeconds(3);
+    expect(service.scanRequestMilliseconds, 3000);
+    await service.setScanRequestMilliseconds(725);
     final waitingFolders = <String?>[];
     service.addListener(() {
-      if (service.scanningStatus.startsWith('约 3 秒后继续请求目录')) {
+      if (service.scanningStatus.startsWith('约 725 毫秒后继续请求目录')) {
         waitingFolders.add(service.scanningFolderId);
       }
     });
+
+    final mount = service.mountFolders.single;
+    await expectLater(
+        service.scanMountFolder(mount), throwsA(isA<DioException>()));
+    expect(
+        service.indexedHistory.single.filePath, startsWith('quark://StaleFID/'));
+    expect(metadataPaths, isEmpty);
+    expect(waitingFolders, List.filled(8, folder.id));
+    expect(service.scanningFolderId, isNull);
+    expect(drivePages, [
+      for (var directory = 0; directory <= 7; directory++)
+        (directory: directory, page: 1),
+      (directory: 7, page: 2),
+    ]);
+
+    final beforeRetry = drivePages.length;
     final result = await service.scanMountFolder(service.mountFolders.single);
+    expect(drivePages.skip(beforeRetry), [
+      (directory: 7, page: 1),
+      (directory: 7, page: 2),
+    ]);
     final item = service.indexedHistory.single;
     final detail = service.detailForWork(item.animeId)!;
     expect(result['total'], 1);
@@ -255,22 +297,20 @@ void main() {
     expect(detail.episodeList!.single.id, item.episodeId);
     expect(detail.summary, '作品简介');
     expect(
-        drivePaths.where((path) => path.endsWith('/file/sort')), hasLength(8));
-    expect(waitingFolders, List.filled(7, folder.id));
-    expect(service.scanningFolderId, isNull);
-    expect(
         drivePaths.where(
             (path) => path.contains('/file/') && !path.endsWith('/sort')),
         isEmpty);
     expect(await history.getAllWatchHistory(), isEmpty);
 
+    final beforeRescan = service.catalogRevision.value;
     await service.scanMountFolder(service.mountFolders.single);
     expect(metadataPaths, ['/v0/search/subjects']);
+    expect(service.catalogRevision.value, beforeRescan);
     expect(service.indexedHistory.single.lastWatchTime, item.lastWatchTime);
     await service.setAutoScanHours(3);
     await restored.initialize();
     expect(restored.autoScanHours, 3);
-    expect(restored.scanRequestSeconds, 3);
+    expect(restored.scanRequestMilliseconds, 725);
     expect(restored.indexedHistory.single.filePath, item.filePath);
     expect(restored.detailForWork(item.animeId)?.summary, '作品简介');
     await Future<void>.delayed(Duration.zero);
