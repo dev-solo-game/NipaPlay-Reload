@@ -1,8 +1,8 @@
 {
-  "build_time": "",
-  "build_time_epoch": 0,
-  "cpu": "",
-  "memory_bytes": 0,
-  "os": "",
-  "arch": ""
+  "arch": "x86_64",
+  "build_time": "2026-11-09 07:19:59 UTC",
+  "build_time_epoch": 1794179999,
+  "cpu": "13th Gen Intel(R) Core(TM) i7-13700KF",
+  "memory_bytes": 137264111616,
+  "os": "Microsoft Windows 11 \u6d93\u64b2\u7b1f\u9417"
 }

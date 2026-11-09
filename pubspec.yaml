@@ -302,6 +302,8 @@ flutter:
 
 # Add dependency_overrides for all media_kit related packages
 dependency_overrides:
+  fluent_ui:
+    path: packages/fluent_ui-4.15.1
   # Awaitable native teardown for MDK hot swaps on every mainline platform.
   fvp:
     path: third_party/fvp

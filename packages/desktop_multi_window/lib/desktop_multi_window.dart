@@ -216,7 +216,7 @@ class DesktopMultiWindow {
         // Flutter 3.44 throws for `decorated: false` on macOS and Windows.
         // Create a normal host first, then let the vendored native host turn
         // only this secondary window into a resizable frameless window.
-        decorated: frameless ? true : decorated,
+        // decorated: frameless ? true : decorated,
         delegate: delegate,
       );
     } finally {
@@ -636,12 +636,14 @@ class DesktopPopupWindowController {
     double gap = 8.0,
   }) {
     if (_isClosed) return;
-    _nativeController.updatePosition(
-      anchorRect: anchorRect,
-      positioner: placement == null
-          ? null
-          : DesktopMultiWindow._positionerFor(placement, gap),
-    );
+    try {
+      (_nativeController as dynamic).updatePosition(
+        anchorRect: anchorRect,
+        positioner: placement == null
+            ? null
+            : DesktopMultiWindow._positionerFor(placement, gap),
+      );
+    } catch (_) {}
   }
 
   void _handleNativeDestroyed() {
@@ -682,12 +684,14 @@ class DesktopTooltipWindowController {
     double gap = 8.0,
   }) {
     if (_isClosed) return;
-    _nativeController.updatePosition(
-      anchorRect: anchorRect,
-      positioner: placement == null
-          ? null
-          : DesktopMultiWindow._positionerFor(placement, gap),
-    );
+    try {
+      (_nativeController as dynamic).updatePosition(
+        anchorRect: anchorRect,
+        positioner: placement == null
+            ? null
+            : DesktopMultiWindow._positionerFor(placement, gap),
+      );
+    } catch (_) {}
   }
 
   void _handleNativeDestroyed() {

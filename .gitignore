@@ -70,3 +70,8 @@ docs/error.txt
 android/.kotlin/errors
 *.log
 /.codex_work
+
+windows/libmpv-2.dll
+windows/libmpv-package/
+windows/libmpv-package.7z
+assets/build_info.json
