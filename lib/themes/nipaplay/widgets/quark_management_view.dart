@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:nipaplay/models/quark/quark_mount_folder.dart';
 import 'package:nipaplay/models/watch_history_model.dart';
 import 'package:nipaplay/providers/watch_history_provider.dart';
+import 'package:nipaplay/services/quark/quark_metadata_scraper.dart';
 import 'package:nipaplay/services/quark/quark_service.dart';
 import 'package:nipaplay/themes/nipaplay/widgets/blur_dialog.dart';
 import 'package:nipaplay/themes/nipaplay/widgets/blur_snackbar.dart';
@@ -203,6 +204,83 @@ class _QuarkManagementViewState extends State<QuarkManagementView> {
     }
   }
 
+  Future<void> _configureTmdbDomains() async {
+    final service = QuarkService.instance;
+    final formKey = GlobalKey<FormState>();
+    var (apiHost: apiHost, imageHost: imageHost) = service.tmdbDomains;
+    final domains = await showDialog<QuarkTmdbDomains>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('TMDB 域名'),
+        scrollable: true,
+        content: SizedBox(
+          width: 360,
+          child: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DropdownButtonFormField<String>(
+                  initialValue: apiHost,
+                  isExpanded: true,
+                  decoration: const InputDecoration(labelText: 'API 域名'),
+                  items: [
+                    for (final host in QuarkMetadataScraper.apiHosts)
+                      DropdownMenuItem(value: host, child: Text(host)),
+                  ],
+                  onChanged: (value) {
+                    if (value != null) apiHost = value;
+                  },
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  initialValue: imageHost,
+                  keyboardType: TextInputType.url,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  decoration: const InputDecoration(
+                    labelText: '图片域名',
+                    hintText: QuarkMetadataScraper.defaultImageHost,
+                    helperText: '只填写域名，留空恢复默认',
+                  ),
+                  onChanged: (value) => imageHost = value,
+                  validator: (value) =>
+                      QuarkMetadataScraper.normalizeImageHost(value ?? '') ==
+                              null
+                          ? '请输入有效域名'
+                          : null,
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('取消'),
+          ),
+          TextButton(
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.of(dialogContext).pop(
+                  (apiHost: apiHost, imageHost: imageHost),
+                );
+              }
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || domains == null) return;
+    try {
+      await service.setTmdbDomains(domains);
+      if (mounted) BlurSnackBar.show(context, 'TMDB 域名已保存');
+    } catch (_) {
+      if (mounted) BlurSnackBar.show(context, '保存 TMDB 域名失败');
+    }
+  }
+
   Future<void> _configureScanInterval() async {
     final service = QuarkService.instance;
     final formKey = GlobalKey<FormState>();
@@ -262,6 +340,7 @@ class _QuarkManagementViewState extends State<QuarkManagementView> {
   @override
   Widget build(BuildContext context) {
     final service = QuarkService.instance;
+    final tmdbDomains = service.tmdbDomains;
     final account = service.currentAccount;
     final folders = service.mountFolders;
     final theme = Theme.of(context);
@@ -313,6 +392,19 @@ class _QuarkManagementViewState extends State<QuarkManagementView> {
                 ? 'TMDB · 通过片名和年份补充电影及电视剧资料'
                 : 'Bangumi 公开搜索 · 可配置 TMDB API Key 或读取令牌'),
             trailing: TextButton(onPressed: _configureTmdb, child: const Text('设置 TMDB')),
+          ),
+        ),
+        const SizedBox(height: 8),
+        LibraryManagementCard(
+          child: ListTile(
+            title: const Text('TMDB 域名'),
+            subtitle: Text(
+              'API ${tmdbDomains.apiHost} · 图片 ${tmdbDomains.imageHost}',
+            ),
+            trailing: TextButton(
+              onPressed: _configureTmdbDomains,
+              child: const Text('修改域名'),
+            ),
           ),
         ),
         const SizedBox(height: 18),

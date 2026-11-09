@@ -138,11 +138,21 @@ void main() {
     const expected =
         (cover: 'https://image.tmdb.org/t/p/w500/right.jpg', summary: '简介');
     expect(await scraper.lookup(movie, 'test-token'), expected);
-    expect(await scraper.lookup(movie, _testTmdbApiKey), expected);
+    expect(
+      await scraper.lookup(movie, _testTmdbApiKey, apiHost: 'api.tmdb.org'),
+      expected,
+    );
+    expect(requests[0].uri.host, 'api.themoviedb.org');
+    expect(requests[1].uri.host, 'api.tmdb.org');
     expect(requests[0].headers['Authorization'], 'Bearer test-token');
     expect(requests[0].queryParameters, isNot(contains('api_key')));
     expect(requests[1].headers, isNot(contains('Authorization')));
     expect(requests[1].queryParameters['api_key'], _testTmdbApiKey);
+    await expectLater(
+      scraper.lookup(movie, _testTmdbApiKey, apiHost: 'example.com'),
+      throwsArgumentError,
+    );
+    expect(requests, hasLength(2));
   });
 
   test('catalog snapshots persist without creating viewing history rows',
@@ -237,11 +247,13 @@ void main() {
       }));
     }));
     final metadataPaths = <String>[];
+    final tmdbHosts = <String>[];
     var rejectTmdb = true;
     metadata.interceptors
         .add(InterceptorsWrapper(onRequest: (request, handler) {
       metadataPaths.add(request.uri.path);
       if (request.uri.path == '/3/search/tv') {
+        tmdbHosts.add(request.uri.host);
         if (rejectTmdb) {
           handler.reject(DioException.badResponse(
             statusCode: 401,
@@ -346,6 +358,9 @@ void main() {
 
     final directoriesBeforeScraping = drivePages.length;
     await service.setTmdbToken(_testTmdbApiKey);
+    expect(service.tmdbDomains,
+        (apiHost: 'api.themoviedb.org', imageHost: 'image.tmdb.org'));
+    await service.setTmdbDomains((apiHost: 'api.tmdb.org', imageHost: ''));
     await service.scrapeMountMetadata(mount);
     final failed = service.metadataProgressFor(mount.id)!;
     expect((failed.total, failed.completed, failed.matched, failed.failed),
@@ -361,7 +376,30 @@ void main() {
     expect(scraped.error, isNull);
     expect(service.detailForWork(item.animeId)?.imageUrl,
         'https://image.tmdb.org/t/p/w500/show.jpg');
+    expect(tmdbHosts, ['api.tmdb.org', 'api.tmdb.org']);
     expect(drivePages, hasLength(directoriesBeforeScraping));
+
+    const mirroredCover = 'https://posters.example.com/t/p/w500/show.jpg';
+    await service.setTmdbDomains(
+      (apiHost: 'api.tmdb.org', imageHost: ' Posters.Example.com '),
+    );
+    expect(service.detailForWork(item.animeId)?.imageUrl, mirroredCover);
+    expect(service.indexedHistory.single.thumbnailPath, mirroredCover);
+    expect(tmdbHosts, hasLength(2));
+
+    final reloaded = createService();
+    addTearDown(reloaded.dispose);
+    await reloaded.initialize();
+    expect(reloaded.hasTmdbToken, isTrue);
+    expect(reloaded.tmdbDomains,
+        (apiHost: 'api.tmdb.org', imageHost: 'posters.example.com'));
+    expect(reloaded.detailForWork(item.animeId)?.imageUrl, mirroredCover);
+    await expectLater(
+      reloaded.setTmdbDomains(
+        (apiHost: 'api.tmdb.org', imageHost: 'https://posters.example.com/path'),
+      ),
+      throwsArgumentError,
+    );
     await Future<void>.delayed(Duration.zero);
   });
 }

@@ -8,6 +8,7 @@ typedef QuarkMetadataCacheEntry = ({
   int checkedAt,
   QuarkWorkMetadata? metadata
 });
+typedef QuarkTmdbDomains = ({String apiHost, String imageHost});
 
 class QuarkMetadataScraper {
   QuarkMetadataScraper({Dio? dio})
@@ -18,7 +19,29 @@ class QuarkMetadataScraper {
             ));
 
   final Dio _dio;
+  static const defaultApiHost = 'api.themoviedb.org';
+  static const defaultImageHost = 'image.tmdb.org';
+  static const apiHosts = [defaultApiHost, 'api.tmdb.org'];
   static final _tmdbApiKey = RegExp(r'^[0-9a-fA-F]{32}$');
+  static final _imageHostPattern = RegExp(
+    r'^(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$',
+  );
+
+  static String? normalizeImageHost(String input) {
+    final host = input.trim().toLowerCase();
+    if (host.isEmpty) return defaultImageHost;
+    return host.length <= 253 && _imageHostPattern.hasMatch(host) ? host : null;
+  }
+
+  static String? coverForImageHost(String? cover, String imageHost) {
+    const defaultOrigin = 'https://$defaultImageHost/';
+    if (cover == null ||
+        imageHost == defaultImageHost ||
+        !cover.startsWith(defaultOrigin)) {
+      return cover;
+    }
+    return 'https://$imageHost/${cover.substring(defaultOrigin.length)}';
+  }
 
   static String _normalize(String title) =>
       title.toLowerCase().replaceAll(RegExp(r'[\s·・:：._\-]+'), '');
@@ -31,19 +54,29 @@ class QuarkMetadataScraper {
         item.isSeries
       ]);
 
-  Future<QuarkWorkMetadata?> lookup(QuarkCatalogItem item, String tmdbToken) {
+  Future<QuarkWorkMetadata?> lookup(
+    QuarkCatalogItem item,
+    String tmdbToken, {
+    String apiHost = defaultApiHost,
+  }) {
     return tmdbToken.isEmpty
         ? _lookupBangumi(item)
-        : _lookupTmdb(item, tmdbToken);
+        : _lookupTmdb(item, tmdbToken, apiHost);
   }
 
   Future<QuarkWorkMetadata?> _lookupTmdb(
-      QuarkCatalogItem item, String credential) async {
+    QuarkCatalogItem item,
+    String credential,
+    String apiHost,
+  ) async {
+    if (!apiHosts.contains(apiHost)) {
+      throw ArgumentError.value(apiHost, 'apiHost');
+    }
     final isSeries = item.isSeries;
     final type = isSeries ? 'tv' : 'movie';
     final isApiKey = _tmdbApiKey.hasMatch(credential);
     final response = await _dio.get<Map<String, dynamic>>(
-      'https://api.themoviedb.org/3/search/$type',
+      'https://$apiHost/3/search/$type',
       queryParameters: {
         'query': item.title,
         'language': 'zh-CN',
@@ -68,7 +101,7 @@ class QuarkMetadataScraper {
     final poster = candidate['poster_path'] as String?;
     return (
       cover: poster?.startsWith('/') == true
-          ? 'https://image.tmdb.org/t/p/w500$poster'
+          ? 'https://$defaultImageHost/t/p/w500$poster'
           : '',
       summary: candidate['overview'] as String? ?? '',
     );

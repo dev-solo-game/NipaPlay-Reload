@@ -59,6 +59,7 @@ class QuarkService extends ChangeNotifier {
   static const String _legacyScanRequestSecondsKey =
       'quark_scan_request_seconds';
   static const String _tmdbTokenKey = 'quark_tmdb_read_token';
+  static const String _tmdbDomainsKey = 'quark_tmdb_domains';
   static const String _scanBackoffKey = 'quark_scan_backoff_until';
   static const List<int> autoScanIntervals = [0, 1, 3, 6, 12, 24];
   static const int maxScanRequestMilliseconds = Duration.millisecondsPerDay;
@@ -110,6 +111,11 @@ class QuarkService extends ChangeNotifier {
   final _workDetails = <int, BangumiAnime>{};
   String _tmdbToken = '';
   bool get hasTmdbToken => _tmdbToken.isNotEmpty;
+  QuarkTmdbDomains _tmdbDomains = (
+    apiHost: QuarkMetadataScraper.defaultApiHost,
+    imageHost: QuarkMetadataScraper.defaultImageHost,
+  );
+  QuarkTmdbDomains get tmdbDomains => _tmdbDomains;
   BangumiAnime? detailForWork(int? id) => _workDetails[id];
   final _catalogByMount = <String, List<QuarkCatalogItem>>{};
   final catalogRevision = ValueNotifier<int>(0);
@@ -146,6 +152,16 @@ class QuarkService extends ChangeNotifier {
     try {
       final prefs = await SharedPreferences.getInstance();
       _tmdbToken = prefs.getString(_tmdbTokenKey) ?? '';
+      final savedDomains = prefs.getStringList(_tmdbDomainsKey);
+      if (savedDomains != null && savedDomains.length == 2) {
+        _tmdbDomains = (
+          apiHost: QuarkMetadataScraper.apiHosts.contains(savedDomains[0])
+              ? savedDomains[0]
+              : QuarkMetadataScraper.defaultApiHost,
+          imageHost: QuarkMetadataScraper.normalizeImageHost(savedDomains[1]) ??
+              QuarkMetadataScraper.defaultImageHost,
+        );
+      }
       final blockedUntil = prefs.getInt(_scanBackoffKey);
       if (blockedUntil != null) {
         _scanBlockedUntil = DateTime.fromMillisecondsSinceEpoch(blockedUntil);
@@ -459,6 +475,28 @@ class QuarkService extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> setTmdbDomains(QuarkTmdbDomains domains) async {
+    if (!QuarkMetadataScraper.apiHosts.contains(domains.apiHost)) {
+      throw ArgumentError.value(domains.apiHost, 'apiHost');
+    }
+    final imageHost = QuarkMetadataScraper.normalizeImageHost(domains.imageHost);
+    if (imageHost == null) throw ArgumentError.value(domains.imageHost, 'imageHost');
+    final next = (apiHost: domains.apiHost, imageHost: imageHost);
+    final prefs = await SharedPreferences.getInstance();
+    if (!await prefs.setStringList(_tmdbDomainsKey, [next.apiHost, next.imageHost])) {
+      throw StateError('无法保存 TMDB 域名');
+    }
+    final previous = _tmdbDomains;
+    _tmdbDomains = next;
+    if (hasTmdbToken && previous.apiHost != next.apiHost) {
+      _metadataProgress.clear();
+    }
+    if (hasTmdbToken && previous.imageHost != next.imageHost) {
+      _publishCatalog();
+    }
+    notifyListeners();
+  }
+
   void _scheduleAutoScan() {
     _autoScanTimer?.cancel();
     _autoScanTimer = null;
@@ -543,6 +581,10 @@ class QuarkService extends ChangeNotifier {
       });
       final key = QuarkMetadataScraper.keyFor(item, useTmdb: hasTmdbToken);
       final metadata = _metadata[key]?.metadata;
+      final cover = hasTmdbToken
+          ? QuarkMetadataScraper.coverForImageHost(
+              metadata?.cover, _tmdbDomains.imageHost)
+          : metadata?.cover;
       final episodeId = item.episodeOrder * 0x100000 +
           int.parse(
               sha256.convert(utf8.encode(item.fid)).toString().substring(0, 5),
@@ -555,7 +597,7 @@ class QuarkService extends ChangeNotifier {
                 id: workId,
                 name: item.displayTitle,
                 nameCn: item.displayTitle,
-                imageUrl: metadata?.cover ?? '',
+                imageUrl: cover ?? '',
                 summary: metadata?.summary,
                 typeDescription: item.isSeries ? '电视剧' : '电影',
                 episodeList: episodes,
@@ -570,7 +612,7 @@ class QuarkService extends ChangeNotifier {
         lastPosition: 0,
         duration: 0,
         lastWatchTime: DateTime.fromMillisecondsSinceEpoch(item.addedAt),
-        thumbnailPath: metadata?.cover,
+        thumbnailPath: cover,
         isFromScan: true,
       );
     }));
@@ -607,6 +649,10 @@ class QuarkService extends ChangeNotifier {
     void Function() checkScan,
   ) async {
     final token = _tmdbToken;
+    final apiHost = _tmdbDomains.apiHost;
+    bool requestSettingsChanged() =>
+        _tmdbToken != token ||
+        (token.isNotEmpty && _tmdbDomains.apiHost != apiHost);
     final source = token.isEmpty ? 'Bangumi' : 'TMDB';
     final uniqueWorks = <String, QuarkCatalogItem>{};
     for (final item in items) {
@@ -649,16 +695,17 @@ class QuarkService extends ChangeNotifier {
     }
     for (final work in pending) {
       checkScan();
-      if (_tmdbToken != token) return updated;
+      if (requestSettingsChanged()) return updated;
       _scanningStatus = '正在刮削 $source · ${work.value.displayTitle}';
       report();
       await _metadataPacer.waitForTurn();
       checkScan();
-      if (_tmdbToken != token) return updated;
+      if (requestSettingsChanged()) return updated;
       try {
-        final response = await _metadataScraper.lookup(work.value, token);
+        final response =
+            await _metadataScraper.lookup(work.value, token, apiHost: apiHost);
         checkScan();
-        if (_tmdbToken != token) return updated;
+        if (requestSettingsChanged()) return updated;
         final result = _hasWorkMetadata(response) ? response : null;
         final previous = _metadata[work.key]?.metadata;
         final entry = (
@@ -667,7 +714,7 @@ class QuarkService extends ChangeNotifier {
         );
         await _catalogStore.saveMetadata(work.key, entry);
         checkScan();
-        if (_tmdbToken != token) return updated;
+        if (requestSettingsChanged()) return updated;
         _metadata[work.key] = entry;
         if (entry.metadata != null) {
           matched++;
@@ -680,7 +727,7 @@ class QuarkService extends ChangeNotifier {
         }
       } on DioException catch (error) {
         checkScan();
-        if (_tmdbToken != token) return updated;
+        if (requestSettingsChanged()) return updated;
         failed++;
         final status = error.response?.statusCode;
         failure = switch (status) {
@@ -694,7 +741,7 @@ class QuarkService extends ChangeNotifier {
         if (status != 404 && status != 422) break;
       } catch (_) {
         checkScan();
-        if (_tmdbToken != token) return updated;
+        if (requestSettingsChanged()) return updated;
         failed++;
         failure = '处理作品资料失败，请重试';
         break;
