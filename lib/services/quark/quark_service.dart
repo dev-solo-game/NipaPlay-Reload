@@ -601,7 +601,8 @@ class QuarkService extends ChangeNotifier {
     final entries = traversal.entries;
     final directories = traversal.directories;
     var nextCheckpoint = DateTime.now();
-    var hasUnpublishedChanges = false;
+    var hasUnpublishedChanges =
+        entries.values.any((item) => !identical(existing[item.fid], item));
 
     void checkScan() {
       _checkSession(generation);
@@ -620,7 +621,8 @@ class QuarkService extends ChangeNotifier {
 
     _scanningFolderId = folder.id;
     _scheduleAutoScan();
-    _scanningStatus = resuming ? '正在继续扫描 ${folder.name}' : '正在扫描 ${folder.name}';
+    _scanningStatus =
+        resuming ? '正在继续扫描 ${folder.name}' : '正在扫描 ${folder.name}';
     notifyListeners();
     try {
       while (directories.isNotEmpty) {
@@ -721,24 +723,28 @@ class QuarkService extends ChangeNotifier {
       checkScan();
       notifyListeners();
       final enriched = await _scrapeMetadata(indexed, checkScan);
+      checkScan();
       return {
         'total': indexed.length,
         'works': indexed.map((item) => item.workKey).toSet().length,
         'enriched': enriched,
       };
     } catch (error) {
+      final blockedUntil = error is QuarkRateLimitException
+          ? DateTime.now().add(error.retryAfter)
+          : null;
       if ((error is DioException || error is QuarkRateLimitException) &&
           directories.isNotEmpty &&
           _sessionGeneration == generation &&
           _mountFolders.any((mounted) => mounted.id == folder.id)) {
         _pausedScan = (
           mountId: folder.id,
-          expiresAt: DateTime.now().add(const Duration(minutes: 15)),
+          expiresAt:
+              (blockedUntil ?? DateTime.now()).add(const Duration(minutes: 15)),
           traversal: traversal,
         );
       }
-      if (error is QuarkRateLimitException) {
-        final blockedUntil = DateTime.now().add(error.retryAfter);
+      if (blockedUntil != null) {
         _scanBlockedUntil = blockedUntil;
         final prefs = await SharedPreferences.getInstance();
         await prefs.setInt(_scanBackoffKey, blockedUntil.millisecondsSinceEpoch);

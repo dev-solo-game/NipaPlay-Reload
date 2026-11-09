@@ -193,6 +193,62 @@ class _QuarkManagementViewState extends State<QuarkManagementView> {
     }
   }
 
+  Future<void> _configureScanInterval() async {
+    final service = QuarkService.instance;
+    final formKey = GlobalKey<FormState>();
+    var input = service.scanRequestMilliseconds.toString();
+    final milliseconds = await showDialog<int>(
+      context: context,
+      builder: (dialogContext) {
+        void save() {
+          if (formKey.currentState!.validate()) {
+            Navigator.of(dialogContext).pop(int.parse(input.trim()));
+          }
+        }
+
+        return AlertDialog(
+          title: const Text('目录扫描请求间隔'),
+          content: Form(
+            key: formKey,
+            child: TextFormField(
+              initialValue: input,
+              autofocus: true,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(
+                labelText: '毫秒',
+                helperText: '0 表示收到上一页后立即请求下一页',
+              ),
+              onChanged: (value) => input = value,
+              onFieldSubmitted: (_) => save(),
+              validator: (value) {
+                final interval = int.tryParse(value?.trim() ?? '');
+                if (interval == null ||
+                    interval < 0 ||
+                    interval > QuarkService.maxScanRequestMilliseconds) {
+                  return '请输入 0 至 ${QuarkService.maxScanRequestMilliseconds} 的整数';
+                }
+                return null;
+              },
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('取消'),
+            ),
+            TextButton(onPressed: save, child: const Text('保存')),
+          ],
+        );
+      },
+    );
+    if (!mounted || milliseconds == null) return;
+    try {
+      await service.setScanRequestMilliseconds(milliseconds);
+    } catch (_) {
+      if (mounted) BlurSnackBar.show(context, '保存目录请求间隔失败');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final service = QuarkService.instance;
@@ -233,25 +289,9 @@ class _QuarkManagementViewState extends State<QuarkManagementView> {
           child: ListTile(
             title: const Text('目录扫描请求间隔'),
             subtitle: const Text('手动和自动扫描均适用，下次扫描生效。'),
-            trailing: DropdownButton<int>(
-              value: service.scanRequestSeconds,
-              items: [
-                for (final seconds in QuarkService.scanRequestIntervals)
-                  DropdownMenuItem(
-                    value: seconds,
-                    child: Text('每 $seconds 秒一页'),
-                  ),
-              ],
-              onChanged: (seconds) async {
-                if (seconds == null) return;
-                try {
-                  await service.setScanRequestSeconds(seconds);
-                } catch (error) {
-                  if (context.mounted) {
-                    BlurSnackBar.show(context, '保存目录请求间隔失败：$error');
-                  }
-                }
-              },
+            trailing: TextButton(
+              onPressed: _configureScanInterval,
+              child: Text('${service.scanRequestMilliseconds} 毫秒'),
             ),
           ),
         ),
@@ -496,7 +536,7 @@ class _QuarkManagementViewState extends State<QuarkManagementView> {
                       Padding(
                         padding: const EdgeInsets.only(top: 2),
                         child: Text(
-                          '上次刮削: ${folder.lastScanTime!.toLocal().toString().split('.').first}',
+                          '上次扫描 ${folder.lastScanTime!.toLocal().toString().split('.').first}',
                           style: TextStyle(fontSize: 11, color: subColor.withOpacity(0.8)),
                         ),
                       ),
