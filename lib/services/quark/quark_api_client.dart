@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:nipaplay/models/quark/quark_file.dart';
@@ -100,17 +101,25 @@ class QuarkApiClient {
     final response = await _dio.get(
       '$uopUrl/getTokenForQrcodeLogin',
       queryParameters: {
-        'client_id': '1',
+        'client_id': '532',
         'v': '1.2',
         'request_id': requestId,
       },
     );
 
     final data = response.data;
-    if (data is Map && data['status'] == 200) {
-      final token = (data['data'] as Map?)?['token'] as String?;
+    if (data is Map && (data['status'] == 2000000 || data['message'] == 'ok')) {
+      final members = (data['data'] as Map?)?['members'] as Map?;
+      final token = members?['token'] as String? ?? (data['data'] as Map?)?['token'] as String?;
       if (token != null && token.isNotEmpty) {
-        final qrUrl = 'https://su.quark.cn/4_eMHBJ?token=$token';
+        final query = Uri(queryParameters: {
+          'token': token,
+          'client_id': '532',
+          'ssb': 'weblogin',
+          'uc_param_str': '',
+          'uc_biz_str': 'S:custom|OPT:SAREA@0|OPT:IMMERSIVE@1|OPT:BACK_BTN_STYLE@0',
+        }).query;
+        final qrUrl = 'https://su.quark.cn/4_eMHBJ?$query';
         return {
           'token': token,
           'qrUrl': qrUrl,
@@ -127,7 +136,7 @@ class QuarkApiClient {
     final response = await _dio.get(
       '$uopUrl/getServiceTicketByQrcodeToken',
       queryParameters: {
-        'client_id': '1',
+        'client_id': '532',
         'v': '1.2',
         'token': token,
         'request_id': requestId,
@@ -139,64 +148,91 @@ class QuarkApiClient {
       return QuarkQrCodeStatus.failed('响应格式错误');
     }
 
-    final code = data['code'];
     final status = data['status'];
+    final message = (data['message'] ?? '').toString();
 
-    // 0: 成功换取 ticket
-    if (status == 200 && code == 0) {
-      final ticket = (data['data'] as Map?)?['ticket'] as String?;
-      if (ticket != null && ticket.isNotEmpty) {
-        // 使用 ticket 换取 Cookie
-        final cookie = await _exchangeTicketForCookie(ticket);
+    // 成功换取 service_ticket
+    if ((status == 2000000 || status == 200) && (message == 'ok' || message.isEmpty)) {
+      final members = (data['data'] as Map?)?['members'] as Map?;
+      final serviceTicket = members?['service_ticket'] as String? ??
+          (data['data'] as Map?)?['ticket'] as String?;
+      if (serviceTicket != null && serviceTicket.isNotEmpty) {
+        final cookie = await _exchangeTicketForCookie(serviceTicket);
         if (cookie.isNotEmpty) {
           return QuarkQrCodeStatus.success(cookie);
         }
       }
     }
 
-    // 40001: 等待扫码
-    if (code == 40001) {
-      return QuarkQrCodeStatus.waiting();
-    }
-    // 40002: 已扫码待确认
-    if (code == 40002) {
-      return QuarkQrCodeStatus.scanned();
-    }
-    // 40003 或 40004: 二维码失效 / 过期
-    if (code == 40003 || code == 40004) {
-      return QuarkQrCodeStatus.expired();
+    // 50004001 或 40001: 等待扫码中
+    if (status == 50004001 || status == 40001) {
+      return QuarkQrCodeStatus.waiting('请使用手机夸克 App 扫码');
     }
 
-    final msg = data['message'] as String? ?? '状态检查失败 ($code)';
-    return QuarkQrCodeStatus.failed(msg);
+    // 40002 或 已扫码
+    if (status == 40002 || message.contains('scanned') || message.contains('已扫码')) {
+      return QuarkQrCodeStatus.scanned('已扫码，请在手机上点击确认');
+    }
+
+    // 过期 / 失效
+    final failStatuses = [50004002, 50004003, 50004004, 40003, 40004];
+    if (failStatuses.contains(status) ||
+        message.contains('expired') ||
+        message.contains('timeout') ||
+        message.contains('invalid')) {
+      return QuarkQrCodeStatus.expired('二维码已失效，请刷新');
+    }
+
+    return QuarkQrCodeStatus.waiting('等待手机扫码确认...');
   }
 
   /// 使用 ticket 换取并拼接 Cookie
   Future<String> _exchangeTicketForCookie(String ticket) async {
-    final loginUrl = '$panUrl/account/login';
-    final response = await _dio.get(
-      loginUrl,
-      queryParameters: {'ticket': ticket},
-      options: Options(
-        followRedirects: false,
-        validateStatus: (status) => status != null && status < 500,
-      ),
-    );
-
-    final setCookies = response.headers['set-cookie'] ?? [];
     final Map<String, String> cookieMap = {};
 
-    for (final raw in setCookies) {
-      final parts = raw.split(';');
-      if (parts.isNotEmpty) {
-        final pair = parts[0].trim();
-        final eqIdx = pair.indexOf('=');
-        if (eqIdx > 0) {
-          final key = pair.substring(0, eqIdx).trim();
-          final val = pair.substring(eqIdx + 1).trim();
-          cookieMap[key] = val;
+    void extractCookies(List<String> rawHeaders) {
+      for (final raw in rawHeaders) {
+        final parts = raw.split(';');
+        if (parts.isNotEmpty) {
+          final pair = parts[0].trim();
+          final eqIdx = pair.indexOf('=');
+          if (eqIdx > 0) {
+            final key = pair.substring(0, eqIdx).trim();
+            final val = pair.substring(eqIdx + 1).trim();
+            cookieMap[key] = val;
+          }
         }
       }
+    }
+
+    // 1. 请求 account/info 获取 Cookie
+    try {
+      final infoResponse = await _dio.get(
+        '$panUrl/account/info',
+        queryParameters: {'st': ticket, 'lw': 'scan'},
+        options: Options(
+          followRedirects: false,
+          validateStatus: (status) => status != null && status < 500,
+        ),
+      );
+      extractCookies(infoResponse.headers['set-cookie'] ?? []);
+    } catch (e) {
+      debugPrint('account/info 换取 Cookie 失败: $e');
+    }
+
+    // 2. 备用请求 account/login 获取 Cookie
+    try {
+      final loginResponse = await _dio.get(
+        '$panUrl/account/login',
+        queryParameters: {'ticket': ticket},
+        options: Options(
+          followRedirects: false,
+          validateStatus: (status) => status != null && status < 500,
+        ),
+      );
+      extractCookies(loginResponse.headers['set-cookie'] ?? []);
+    } catch (e) {
+      debugPrint('account/login 换取 Cookie 失败: $e');
     }
 
     return cookieMap.entries.map((e) => '${e.key}=${e.value}').join('; ');

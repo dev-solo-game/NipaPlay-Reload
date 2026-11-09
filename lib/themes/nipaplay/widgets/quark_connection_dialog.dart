@@ -381,6 +381,28 @@ class _QuarkContentState extends State<_QuarkContent>
                 backgroundColor: Colors.white,
               ),
             ),
+          )
+        else
+          Container(
+            width: 214,
+            height: 214,
+            decoration: BoxDecoration(
+              color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.04),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: isDark ? Colors.white12 : Colors.black12),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.qr_code_2_rounded, size: 48, color: Colors.grey),
+                const SizedBox(height: 8),
+                TextButton.icon(
+                  onPressed: _loadQrCode,
+                  icon: const Icon(Icons.refresh_rounded, size: 18),
+                  label: const Text('点击获取二维码'),
+                ),
+              ],
+            ),
           ),
         const SizedBox(height: 16),
         Row(
