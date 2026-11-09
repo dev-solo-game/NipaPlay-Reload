@@ -3,44 +3,45 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NipaPlay 全平台极简媒体中心原型 (PC / 移动端 / TV 兼顾方案)</title>
+  <title>NipaPlay 全平台极简媒体中心原型 (全功能对齐飞牛影视)</title>
   <script src="https://www.gstatic.com/antigravity/web/dev/tailwindcss.min.js"></script>
   <style>
-    /* 基础滚动条 */
+    /* 基础滚动条美化 */
     ::-webkit-scrollbar { width: 5px; height: 5px; }
     ::-webkit-scrollbar-track { background: transparent; }
     ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.15); border-radius: 9999px; }
-    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.35); }
 
     .hide-scrollbar::-webkit-scrollbar { display: none; }
     .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-    /* 配色与材质 */
-    .bg-main { background-color: #0d0e12; }
-    .bg-sidebar { background-color: #131418; }
-    .bg-topbar { background-color: rgba(13, 14, 18, 0.88); backdrop-filter: blur(20px); }
-    .bg-card { background-color: #191a20; }
-    .bg-card-hover:hover { background-color: #22242c; }
+    /* 现代深色配色系统 (飞牛影视质感) */
+    .bg-main { background-color: #0c0d11; }
+    .bg-sidebar { background-color: #121318; }
+    .bg-topbar { background-color: rgba(12, 13, 17, 0.88); backdrop-filter: blur(20px); }
+    .bg-card { background-color: #181920; }
+    .bg-card-hover:hover { background-color: #21232d; }
+    .accent-blue { background-color: #2563eb; }
 
-    /* 卡片悬停微动效 (PC) */
+    /* PC 卡片悬停微动效 */
     .pc-card {
-      transition: transform 0.22s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.22s ease;
+      transition: transform 0.22s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.22s ease, border-color 0.2s ease;
     }
     .pc-card:hover {
-      transform: translateY(-4px) scale(1.02);
-      box-shadow: 0 14px 30px rgba(0, 0, 0, 0.7);
+      transform: translateY(-5px) scale(1.02);
+      box-shadow: 0 16px 32px rgba(0, 0, 0, 0.75);
     }
 
-    /* TV 电视遥控焦点动效 (Focus State) */
+    /* TV 电视遥控焦点动效 */
     .tv-focusable {
       outline: none;
-      transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      transition: all 0.22s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     }
     .tv-focusable.tv-focused {
       transform: scale(1.08) !important;
       outline: 3px solid #3b82f6 !important;
-      box-shadow: 0 0 25px rgba(59, 130, 246, 0.6), 0 10px 30px rgba(0,0,0,0.8) !important;
-      z-index: 40 !important;
+      box-shadow: 0 0 28px rgba(59, 130, 246, 0.65), 0 12px 35px rgba(0,0,0,0.85) !important;
+      z-index: 45 !important;
     }
 
     /* 手机外壳造型 */
@@ -49,13 +50,13 @@
       height: 760px;
       border-radius: 46px;
       border: 10px solid #27272a;
-      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 0 1px rgba(255, 255, 255, 0.1);
+      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.1);
       position: relative;
       overflow: hidden;
-      background: #0d0e12;
+      background: #0c0d11;
     }
     .phone-island {
-      width: 100px;
+      width: 105px;
       height: 24px;
       background: #000;
       border-radius: 20px;
@@ -82,40 +83,54 @@
       width: 100%;
       max-width: 1280px;
       height: 720px;
-      background: #0a0b0e;
+      background: #090a0d;
       border: 8px solid #1f2937;
       border-radius: 18px;
-      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.9), 0 0 40px rgba(59, 130, 246, 0.15);
+      box-shadow: 0 30px 80px rgba(0, 0, 0, 0.9), 0 0 45px rgba(59, 130, 246, 0.15);
       position: relative;
       overflow: hidden;
     }
 
-    /* 虚拟遥控器外壳 */
+    /* 遥控按键触感 */
     .dpad-btn:active {
       background-color: #3b82f6 !important;
       color: white !important;
       transform: scale(0.92);
     }
+
+    /* 播放器弹幕飘移动画 */
+    @keyframes danmakuMove {
+      from { transform: translateX(100vw); }
+      to { transform: translateX(-100%); }
+    }
+    .danmaku-item {
+      position: absolute;
+      white-space: nowrap;
+      animation: danmakuMove 11s linear infinite;
+      font-weight: 600;
+      text-shadow: 1px 1px 3px rgba(0,0,0,0.9);
+    }
   </style>
 </head>
-<body class="bg-[#08090b] text-gray-100 antialiased font-sans select-none overflow-hidden h-screen w-screen flex flex-col">
+<body class="bg-[#07080a] text-gray-100 antialiased font-sans select-none overflow-hidden h-screen w-screen flex flex-col">
 
-  <!-- ==================== 顶部平台切换控制条 ==================== -->
-  <header class="h-14 bg-[#111216] border-b border-white/10 px-6 flex items-center justify-between z-50 flex-shrink-0 shadow-md">
+  <!-- ==================== 顶部平台切换与预览控制器 ==================== -->
+  <header class="h-14 bg-[#101115] border-b border-white/10 px-6 flex items-center justify-between z-50 flex-shrink-0 shadow-lg">
+    <!-- 品牌与版本标识 -->
     <div class="flex items-center space-x-3">
       <div class="w-7 h-7 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center font-bold text-white text-sm shadow-md">
         N
       </div>
       <div>
         <div class="flex items-center space-x-2">
-          <span class="font-bold text-sm tracking-wide text-white">NipaPlay 架构重构演示</span>
-          <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-500/20 text-blue-400 border border-blue-500/30">多端兼顾</span>
+          <span class="font-bold text-sm tracking-wide text-white">NipaPlay 飞牛版完整原型</span>
+          <span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-500/20 text-blue-400 border border-blue-500/30">全页面全类型涵盖</span>
         </div>
       </div>
     </div>
 
-    <!-- 平台切换器按钮组 -->
-    <div class="flex items-center bg-black/40 p-1 rounded-xl border border-white/10 space-x-1">
+    <!-- 平台切换器按钮组 (PC / Mobile / TV) -->
+    <div class="flex items-center bg-black/50 p-1 rounded-xl border border-white/10 space-x-1">
       <button id="btn-mode-pc" onclick="switchPlatformMode('pc')" class="flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-medium transition bg-blue-600 text-white shadow">
         <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2h-2.22l.123.489.804.804A1 1 0 0113 18H7a1 1 0 01-.707-1.707l.804-.804L7.22 15H5a2 2 0 01-2-2V5zm2 1v6h10V6H5z" clip-rule="evenodd"/></svg>
         <span>PC 桌面端</span>
@@ -128,36 +143,39 @@
 
       <button id="btn-mode-tv" onclick="switchPlatformMode('tv')" class="flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-medium transition text-gray-400 hover:text-white hover:bg-white/5">
         <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M3 5a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2h-2.22l.123.489.804.804A1 1 0 0113 18H7a1 1 0 01-.707-1.707l.804-.804L7.22 15H5a2 2 0 01-2-2V5zm2 1v6h10V6H5z" clip-rule="evenodd"/></svg>
-        <span>TV 电视大屏 (遥控焦点)</span>
+        <span>TV 电视端 (遥控焦点)</span>
       </button>
     </div>
 
-    <!-- 快捷视图切换与功能菜单 -->
-    <div class="flex items-center space-x-3 text-xs">
-      <button onclick="openArchitectureGuide()" class="px-2.5 py-1.5 rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20 transition flex items-center space-x-1.5 font-medium">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
-        <span>多端播放稳定保障方案</span>
+    <!-- 快捷视图直达菜单 -->
+    <div class="flex items-center space-x-2 text-xs">
+      <button onclick="pcShowView('home')" class="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition">首页全类型</button>
+      <button onclick="openCategoryFilter('tv')" class="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition">多维筛选库</button>
+      <button onclick="openDetailView('smalltown')" class="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition">剧集详情(图2)</button>
+      <button onclick="openDetailView('deadpool')" class="px-2.5 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition">电影详情</button>
+      <button onclick="openPlayerModal('小城良方 - 第10集', '电视剧')" class="px-2.5 py-1.5 rounded-lg bg-blue-600/30 text-blue-400 border border-blue-500/40 hover:bg-blue-600/50 transition flex items-center space-x-1">
+        <span>▶ 播放器预览</span>
       </button>
-      <button onclick="openGlobalSettings()" class="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition border border-white/10" title="统一设置中心">
+      <button onclick="openGlobalSettings('sources')" class="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white transition border border-white/10" title="统一设置中心">
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
       </button>
     </div>
   </header>
 
-  <!-- 主内容区容器 (承载 PC / 移动端 / TV 模拟器) -->
+  <!-- 主视窗外层容器 -->
   <div class="flex-1 overflow-hidden relative flex items-center justify-center p-3">
 
     <!-- ========================================================================= -->
     <!--                               1. PC 桌面端容器                             -->
     <!-- ========================================================================= -->
     <div id="container-pc" class="w-full h-full flex flex-col bg-main rounded-xl border border-white/10 overflow-hidden shadow-2xl">
-      <!-- 模拟 Windows 标题栏 -->
+      <!-- 模拟 Windows 桌面端标题栏 -->
       <div class="h-8 bg-sidebar flex items-center justify-between px-3 border-b border-white/5 text-xs text-gray-400 select-none flex-shrink-0">
         <div class="flex items-center space-x-2">
           <span class="w-3 h-3 rounded-full bg-blue-500 inline-block"></span>
-          <span class="font-semibold text-gray-300">NipaPlay PC 桌面端 (对齐飞牛影视)</span>
+          <span class="font-semibold text-gray-300">NipaPlay PC 桌面端 (对齐飞牛影视 fnOS)</span>
           <span class="text-white/30">|</span>
-          <span class="text-white/50 text-[11px]">启动默认直达统一媒体库</span>
+          <span class="text-white/50 text-[11px]">启动默认直达统一媒体库 · 零多余功能</span>
         </div>
         <div class="flex items-center space-x-3 text-white/60">
           <button class="hover:text-white">−</button>
@@ -167,9 +185,10 @@
       </div>
 
       <div class="flex-1 flex overflow-hidden">
-        <!-- PC 侧边栏 (220px) -->
+        <!-- PC 侧边栏 (220px) 严格对齐图1 -->
         <aside class="w-56 bg-sidebar flex flex-col border-r border-white/5 flex-shrink-0">
-          <div class="p-4 flex items-center space-x-3">
+          <!-- 品牌 Logo -->
+          <div class="p-4 flex items-center space-x-3 cursor-pointer" onclick="pcShowView('home')">
             <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/20">
               <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z"/></svg>
             </div>
@@ -179,16 +198,17 @@
             </div>
           </div>
 
-          <!-- 导航菜单 -->
+          <!-- 导航菜单项 -->
           <div class="flex-1 overflow-y-auto px-3 py-1 space-y-5">
+            <!-- 顶部主菜单 -->
             <div class="space-y-1">
-              <button onclick="pcShowView('home')" class="pc-nav-btn w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition bg-blue-600/20 text-blue-400 border border-blue-500/30">
+              <button id="pc-nav-home" onclick="pcShowView('home')" class="pc-nav-btn w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition bg-blue-600/20 text-blue-400 border border-blue-500/30">
                 <div class="flex items-center space-x-2.5">
                   <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/></svg>
                   <span>首页</span>
                 </div>
               </button>
-              <button onclick="showToast('已进入收藏过滤')" class="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-gray-400 hover:text-white hover:bg-white/5 transition">
+              <button id="pc-nav-fav" onclick="pcShowView('favorites')" class="pc-nav-btn w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs text-gray-400 hover:text-white hover:bg-white/5 transition">
                 <div class="flex items-center space-x-2.5">
                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg>
                   <span>收藏</span>
@@ -197,32 +217,32 @@
               </button>
             </div>
 
-            <!-- 媒体库分组 -->
+            <!-- 媒体库分组 (严格对齐图1) -->
             <div>
               <div class="px-2 text-[10px] font-semibold text-gray-500 tracking-wider mb-1.5">媒体库</div>
               <div class="space-y-0.5 text-xs">
-                <button onclick="pcShowToast('筛选电视剧')" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition">
+                <button onclick="openCategoryFilter('tv')" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition">
                   <div class="flex items-center space-x-2.5">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
                     <span>电视剧</span>
                   </div>
                   <span class="text-[10px] text-gray-500">641</span>
                 </button>
-                <button onclick="pcShowToast('筛选网课')" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition">
+                <button onclick="openCategoryFilter('class')" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition">
                   <div class="flex items-center space-x-2.5">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>
                     <span>网课</span>
                   </div>
                   <span class="text-[10px] text-gray-500">510</span>
                 </button>
-                <button onclick="pcShowToast('筛选电影')" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition">
+                <button onclick="openCategoryFilter('movie')" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition">
                   <div class="flex items-center space-x-2.5">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/></svg>
                     <span>电影</span>
                   </div>
                   <span class="text-[10px] text-gray-500">1562</span>
                 </button>
-                <button onclick="pcShowToast('筛选混合影片')" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition">
+                <button onclick="openCategoryFilter('mix')" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition">
                   <div class="flex items-center space-x-2.5">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
                     <span>混合影片</span>
@@ -232,29 +252,45 @@
               </div>
             </div>
 
-            <!-- 分类 -->
+            <!-- 分类导航分组 (严格对齐图1) -->
             <div>
               <div class="px-2 text-[10px] font-semibold text-gray-500 tracking-wider mb-1.5">分类</div>
               <div class="space-y-0.5 text-xs">
-                <button class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition">
-                  <span>全部</span>
+                <button onclick="openCategoryFilter('all')" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition">
+                  <div class="flex items-center space-x-2.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
+                    <span>全部</span>
+                  </div>
                   <span class="text-[10px] text-gray-500">95</span>
                 </button>
-                <button class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition">
-                  <span>电视节目</span>
+                <button onclick="openCategoryFilter('tvshow')" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition">
+                  <div class="flex items-center space-x-2.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                    <span>电视节目</span>
+                  </div>
                   <span class="text-[10px] text-gray-500">140</span>
                 </button>
-                <button class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition">
-                  <span>电影</span>
+                <button onclick="openCategoryFilter('movie')" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition">
+                  <div class="flex items-center space-x-2.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"/></svg>
+                    <span>电影</span>
+                  </div>
                   <span class="text-[10px] text-gray-500">240</span>
+                </button>
+                <button onclick="openCategoryFilter('other')" class="w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-white/5 transition">
+                  <div class="flex items-center space-x-2.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4"/></svg>
+                    <span>其他</span>
+                  </div>
+                  <span class="text-[10px] text-gray-500">120</span>
                 </button>
               </div>
             </div>
           </div>
 
-          <!-- 底部媒体源状态快捷栏 -->
+          <!-- 底部夸克媒体源状态 -->
           <div class="p-3 border-t border-white/5 bg-white/[0.02] flex items-center justify-between">
-            <div class="flex items-center space-x-2">
+            <div class="flex items-center space-x-2 cursor-pointer" onclick="openGlobalSettings('sources')">
               <div class="w-6 h-6 rounded-full bg-blue-600/30 flex items-center justify-center text-blue-400 font-bold text-[10px]">夸</div>
               <div class="flex flex-col">
                 <span class="text-[11px] font-medium text-white/90">夸克网盘已连通</span>
@@ -267,85 +303,163 @@
           </div>
         </aside>
 
-        <!-- PC 主视窗内容 -->
+        <!-- PC 主视窗内容区 -->
         <main class="flex-1 flex flex-col overflow-hidden bg-main relative">
-          <!-- PC 顶栏 -->
+          <!-- PC 顶栏 (严格对齐图1) -->
           <header class="h-12 bg-topbar px-6 flex items-center justify-between border-b border-white/5 z-20 flex-shrink-0">
             <h2 id="pc-topbar-title" class="text-base font-bold text-white tracking-wide">首页</h2>
-            <div class="flex items-center space-x-3">
-              <div class="flex items-center space-x-2 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-2.5 py-1 rounded-full text-xs transition border border-white/10 cursor-pointer">
+            
+            <div class="flex items-center space-x-3.5">
+              <!-- 搜索按钮 -->
+              <div onclick="openSearchModal()" class="flex items-center space-x-2 bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white px-3 py-1 rounded-full text-xs transition border border-white/10 cursor-pointer">
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                <span>搜索影视...</span>
+                <span>搜索影视、演员...</span>
                 <kbd class="text-[9px] px-1 py-0.2 bg-black/40 rounded border border-white/10 text-gray-400">Ctrl+F</kbd>
               </div>
+
+              <!-- 任务队列小图标 -->
+              <button onclick="showToast('无正在进行的下载任务')" class="p-1.5 rounded-full hover:bg-white/10 text-gray-400 hover:text-white transition">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+              </button>
+
+              <!-- 用户头像 -->
               <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-gray-700 to-gray-600 flex items-center justify-center text-xs font-bold text-white border border-white/10">D</div>
+
+              <!-- 设置按钮 -->
               <button onclick="openGlobalSettings('sources')" class="p-1.5 rounded-full bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10" title="设置">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
               </button>
             </div>
           </header>
 
-          <!-- PC 内容滚动区 -->
-          <div class="flex-1 overflow-y-auto p-6 space-y-7">
-            <!-- PC 视图 1: 首页媒体库 -->
-            <div id="pc-view-home" class="space-y-6">
-              <!-- 4 大媒体库入口卡片 -->
+          <!-- PC 主体视图滚动区 -->
+          <div id="pc-content-container" class="flex-1 overflow-y-auto p-6 space-y-8">
+
+            <!-- ==================== A. 首页全类型聚合视图 ==================== -->
+            <div id="pc-view-home" class="space-y-8">
+              <!-- 1. 媒体库卡片组 (电视剧、电影、动漫、合集等微缩拼贴) -->
               <div>
                 <h3 class="text-[11px] font-semibold tracking-wider text-gray-400 uppercase mb-2.5">媒体库</h3>
                 <div class="grid grid-cols-4 gap-3.5">
-                  <div class="bg-card bg-card-hover rounded-xl p-2.5 border border-white/5 cursor-pointer pc-card group">
+                  <!-- 电视剧卡片 -->
+                  <div onclick="openCategoryFilter('tv')" class="bg-card bg-card-hover rounded-xl p-2.5 border border-white/5 cursor-pointer pc-card group">
                     <div class="grid grid-cols-4 gap-1 h-16 rounded-lg overflow-hidden bg-black/40 mb-2">
                       <div class="bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1594909122845-11baa439b7bf?w=200');"></div>
                       <div class="bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?w=200');"></div>
                       <div class="bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1616530940355-351fabd9524b?w=200');"></div>
                       <div class="bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=200');"></div>
                     </div>
-                    <div class="text-center font-medium text-xs text-gray-200 group-hover:text-blue-400">电视剧</div>
+                    <div class="text-center font-medium text-xs text-gray-200 group-hover:text-blue-400">电视剧 (641)</div>
                   </div>
 
-                  <div class="bg-card bg-card-hover rounded-xl p-2.5 border border-white/5 cursor-pointer pc-card group">
+                  <!-- 电影卡片 -->
+                  <div onclick="openCategoryFilter('movie')" class="bg-card bg-card-hover rounded-xl p-2.5 border border-white/5 cursor-pointer pc-card group">
                     <div class="grid grid-cols-4 gap-1 h-16 rounded-lg overflow-hidden bg-black/40 mb-2">
                       <div class="bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=200');"></div>
                       <div class="bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?w=200');"></div>
                       <div class="bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1594909122845-11baa439b7bf?w=200');"></div>
                       <div class="bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=200');"></div>
                     </div>
-                    <div class="text-center font-medium text-xs text-gray-200 group-hover:text-blue-400">电影</div>
+                    <div class="text-center font-medium text-xs text-gray-200 group-hover:text-blue-400">电影 (1562)</div>
                   </div>
 
-                  <div class="bg-card bg-card-hover rounded-xl p-2.5 border border-white/5 cursor-pointer pc-card group">
+                  <!-- 动漫/综艺卡片 -->
+                  <div onclick="openCategoryFilter('anime')" class="bg-card bg-card-hover rounded-xl p-2.5 border border-white/5 cursor-pointer pc-card group">
                     <div class="grid grid-cols-4 gap-1 h-16 rounded-lg overflow-hidden bg-black/40 mb-2">
+                      <div class="bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1578632767115-351597cf2477?w=200');"></div>
+                      <div class="bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1534447677768-be436bb09401?w=200');"></div>
                       <div class="bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=200');"></div>
                       <div class="bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=200');"></div>
-                      <div class="bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=200');"></div>
-                      <div class="bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=200');"></div>
                     </div>
-                    <div class="text-center font-medium text-xs text-gray-200 group-hover:text-blue-400">综艺</div>
+                    <div class="text-center font-medium text-xs text-gray-200 group-hover:text-blue-400">动漫 & 综艺</div>
                   </div>
 
-                  <div class="bg-card bg-card-hover rounded-xl p-2.5 border border-white/5 cursor-pointer pc-card group">
+                  <!-- 合集卡片 -->
+                  <div onclick="openDetailView('collection')" class="bg-card bg-card-hover rounded-xl p-2.5 border border-white/5 cursor-pointer pc-card group">
                     <div class="grid grid-cols-4 gap-1 h-16 rounded-lg overflow-hidden bg-black/40 mb-2">
                       <div class="bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=200');"></div>
                       <div class="bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1542204165-65bf26472b9b?w=200');"></div>
                       <div class="bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1485846234645-a62644f84728?w=200');"></div>
                       <div class="bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=200');"></div>
                     </div>
-                    <div class="text-center font-medium text-xs text-gray-200 group-hover:text-blue-400">合集</div>
+                    <div class="text-center font-medium text-xs text-gray-200 group-hover:text-blue-400">精选合集 (95)</div>
                   </div>
                 </div>
               </div>
 
-              <!-- 电视剧行 -->
+              <!-- 2. 继续观看 / 历史断点进度行 (飞牛核心体验) -->
               <div>
                 <div class="flex items-center justify-between mb-2.5">
-                  <div class="flex items-center space-x-1 font-bold text-sm text-white">
-                    <span>电视剧</span>
-                    <span class="text-gray-500 font-normal">›</span>
+                  <span class="font-bold text-sm text-white flex items-center space-x-1.5">
+                    <span>继续观看</span>
+                    <span class="text-[10px] text-blue-400 bg-blue-500/10 px-1.5 py-0.2 rounded border border-blue-500/20">断点记忆</span>
+                  </span>
+                </div>
+                <div class="grid grid-cols-3 gap-3.5">
+                  <!-- 历史 1: 小城良方 -->
+                  <div onclick="openPlayerModal('小城良方 - 第10集', '电视剧')" class="bg-card bg-card-hover p-2.5 rounded-xl border border-white/5 cursor-pointer flex space-x-3 items-center pc-card group">
+                    <div class="relative w-28 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?w=300');">
+                      <div class="absolute inset-0 bg-black/40 flex items-center justify-center group-hover:bg-black/20 transition">
+                        <span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">▶</span>
+                      </div>
+                      <div class="absolute bottom-0 inset-x-0 h-1 bg-white/20">
+                        <div class="h-full bg-blue-500 w-2/5"></div>
+                      </div>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="font-bold text-xs text-white truncate group-hover:text-blue-400">小城良方 - 第10集</div>
+                      <div class="text-[10px] text-gray-400 mt-0.5">剩余 28 分钟 · 1080P</div>
+                      <div class="text-[9px] text-gray-500 mt-1">上次播放于 10 分钟前</div>
+                    </div>
                   </div>
+
+                  <!-- 历史 2: 死侍与金刚狼 -->
+                  <div onclick="openPlayerModal('死侍与金刚狼 (2024)', '电影')" class="bg-card bg-card-hover p-2.5 rounded-xl border border-white/5 cursor-pointer flex space-x-3 items-center pc-card group">
+                    <div class="relative w-28 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=300');">
+                      <div class="absolute inset-0 bg-black/40 flex items-center justify-center group-hover:bg-black/20 transition">
+                        <span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">▶</span>
+                      </div>
+                      <div class="absolute bottom-0 inset-x-0 h-1 bg-white/20">
+                        <div class="h-full bg-blue-500 w-3/4"></div>
+                      </div>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="font-bold text-xs text-white truncate group-hover:text-blue-400">死侍与金刚狼</div>
+                      <div class="text-[10px] text-gray-400 mt-0.5">剩余 32 分钟 · 4K HDR</div>
+                      <div class="text-[9px] text-gray-500 mt-1">上次播放于 昨天</div>
+                    </div>
+                  </div>
+
+                  <!-- 历史 3: 生活大爆炸 -->
+                  <div onclick="openPlayerModal('生活大爆炸 S01E01', '电视剧')" class="bg-card bg-card-hover p-2.5 rounded-xl border border-white/5 cursor-pointer flex space-x-3 items-center pc-card group">
+                    <div class="relative w-28 h-16 rounded-lg overflow-hidden flex-shrink-0 bg-cover bg-center" style="background-image: url('https://image.tmdb.org/t/p/w500/ooBGRQBdnvvMeISegQ1vToCvdGw.jpg');">
+                      <div class="absolute inset-0 bg-black/40 flex items-center justify-center group-hover:bg-black/20 transition">
+                        <span class="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-[10px]">▶</span>
+                      </div>
+                      <div class="absolute bottom-0 inset-x-0 h-1 bg-white/20">
+                        <div class="h-full bg-blue-500 w-1/5"></div>
+                      </div>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                      <div class="font-bold text-xs text-white truncate group-hover:text-blue-400">生活大爆炸 - 第1季第1集</div>
+                      <div class="text-[10px] text-gray-400 mt-0.5">剩余 18 分钟 · 1080P</div>
+                      <div class="text-[9px] text-gray-500 mt-1">上次播放于 3 天前</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 3. 电视剧走马灯行 (对齐图1) -->
+              <div>
+                <div class="flex items-center justify-between mb-2.5">
+                  <button onclick="openCategoryFilter('tv')" class="group flex items-center space-x-1.5 text-sm font-bold text-white hover:text-blue-400 transition">
+                    <span>电视剧</span>
+                    <span class="text-gray-500 group-hover:text-blue-400 font-normal">›</span>
+                  </button>
                 </div>
                 <div class="grid grid-cols-6 gap-3.5">
                   <!-- 生活大爆炸 -->
-                  <div onclick="pcShowToast('生活大爆炸')" class="pc-card cursor-pointer">
+                  <div onclick="openPlayerModal('生活大爆炸 S12E24', '电视剧')" class="pc-card cursor-pointer">
                     <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-card border border-white/10 shadow">
                       <img src="https://image.tmdb.org/t/p/w500/ooBGRQBdnvvMeISegQ1vToCvdGw.jpg" onerror="this.src='https://images.unsplash.com/photo-1594909122845-11baa439b7bf?w=300'" class="w-full h-full object-cover">
                       <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 backdrop-blur text-[10px] font-bold text-amber-400 border border-amber-400/30">9.7</div>
@@ -361,12 +475,13 @@
                   </div>
 
                   <!-- 刺客旅馆 -->
-                  <div onclick="pcShowToast('刺客旅馆')" class="pc-card cursor-pointer">
+                  <div onclick="openPlayerModal('刺客旅馆 第1集', '电视剧')" class="pc-card cursor-pointer">
                     <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-card border border-white/10 shadow">
                       <img src="https://image.tmdb.org/t/p/w500/A7SpnCg08Xw81h6x48kS2G0u01U.jpg" onerror="this.src='https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?w=300'" class="w-full h-full object-cover">
                       <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 backdrop-blur text-[10px] font-bold text-amber-400 border border-amber-400/30">8.8</div>
                       <div class="absolute bottom-1.5 right-1.5 flex space-x-1">
                         <span class="px-1 py-0.2 rounded bg-black/60 text-[8px] font-semibold text-white/80 border border-white/20">4K</span>
+                        <span class="px-1 py-0.2 rounded bg-black/60 text-[8px] font-semibold text-white/80 border border-white/20">1080</span>
                       </div>
                     </div>
                     <div class="mt-1.5 text-center">
@@ -375,9 +490,9 @@
                     </div>
                   </div>
 
-                  <!-- 小城良方 (可点击进入对应图2详情) -->
-                  <div onclick="pcShowView('detail')" class="pc-card cursor-pointer">
-                    <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-card border-2 border-blue-500 shadow-lg">
+                  <!-- 小城良方 (图2详情对应入口) -->
+                  <div onclick="openDetailView('smalltown')" class="pc-card cursor-pointer">
+                    <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-card border-2 border-blue-500 shadow-xl">
                       <img src="https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?w=300" class="w-full h-full object-cover">
                       <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 backdrop-blur text-[10px] font-bold text-amber-400 border border-amber-400/30">9.0</div>
                       <div class="absolute bottom-1.5 right-1.5 flex space-x-1">
@@ -392,7 +507,7 @@
                   </div>
 
                   <!-- 小谢尔顿 -->
-                  <div onclick="pcShowToast('小谢尔顿')" class="pc-card cursor-pointer">
+                  <div onclick="openPlayerModal('小谢尔顿 第1集', '电视剧')" class="pc-card cursor-pointer">
                     <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-card border border-white/10 shadow">
                       <img src="https://image.tmdb.org/t/p/w500/MpdmsM9nC9qC2y6Nq4lR6L7Jz4.jpg" onerror="this.src='https://images.unsplash.com/photo-1616530940355-351fabd9524b?w=300'" class="w-full h-full object-cover">
                       <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 backdrop-blur text-[10px] font-bold text-amber-400 border border-amber-400/30">9.7</div>
@@ -407,7 +522,7 @@
                   </div>
 
                   <!-- 摩登家庭 -->
-                  <div onclick="pcShowToast('摩登家庭')" class="pc-card cursor-pointer">
+                  <div onclick="openPlayerModal('摩登家庭 S11E18', '电视剧')" class="pc-card cursor-pointer">
                     <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-card border border-white/10 shadow">
                       <img src="https://image.tmdb.org/t/p/w500/glvd7uQ1SgH2rVbFh8K6x7j9jQ.jpg" onerror="this.src='https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=300'" class="w-full h-full object-cover">
                       <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 backdrop-blur text-[10px] font-bold text-amber-400 border border-amber-400/30">9.5</div>
@@ -422,7 +537,7 @@
                   </div>
 
                   <!-- 破产姐妹 -->
-                  <div onclick="pcShowToast('破产姐妹')" class="pc-card cursor-pointer">
+                  <div onclick="openPlayerModal('破产姐妹 S01E01', '电视剧')" class="pc-card cursor-pointer">
                     <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-card border border-white/10 shadow">
                       <img src="https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=300" class="w-full h-full object-cover">
                       <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 backdrop-blur text-[10px] font-bold text-amber-400 border border-amber-400/30">9.1</div>
@@ -437,17 +552,384 @@
                   </div>
                 </div>
               </div>
+
+              <!-- 4. 电影海报流 (对齐图1) -->
+              <div>
+                <div class="flex items-center justify-between mb-2.5">
+                  <button onclick="openCategoryFilter('movie')" class="group flex items-center space-x-1.5 text-sm font-bold text-white hover:text-blue-400 transition">
+                    <span>电影</span>
+                    <span class="text-gray-500 group-hover:text-blue-400 font-normal">›</span>
+                  </button>
+                </div>
+                <div class="grid grid-cols-6 gap-3.5">
+                  <!-- 死侍与金刚狼 (点击进入电影专属详情) -->
+                  <div onclick="openDetailView('deadpool')" class="pc-card cursor-pointer">
+                    <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-card border-2 border-red-500/70 shadow-lg">
+                      <img src="https://image.tmdb.org/t/p/w500/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg" onerror="this.src='https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=300'" class="w-full h-full object-cover">
+                      <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 backdrop-blur text-[10px] font-bold text-amber-400 border border-amber-400/30">7.1</div>
+                      <div class="absolute bottom-1.5 right-1.5 px-1 py-0.2 rounded bg-black/60 text-[8px] font-semibold text-white/80 border border-white/20">4K HDR</div>
+                    </div>
+                    <div class="mt-1.5 text-center">
+                      <div class="font-bold text-xs text-red-400 truncate">死侍与金刚狼</div>
+                      <div class="text-[10px] text-gray-400">2024 · 动作 / 喜剧</div>
+                    </div>
+                  </div>
+
+                  <!-- 飞月情海 -->
+                  <div onclick="openPlayerModal('飞月情海', '电影')" class="pc-card cursor-pointer">
+                    <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-card border border-white/10 shadow">
+                      <img src="https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=300" class="w-full h-full object-cover">
+                      <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 backdrop-blur text-[10px] font-bold text-amber-400 border border-amber-400/30">8.8</div>
+                      <div class="absolute bottom-1.5 right-1.5 px-1 py-0.2 rounded bg-black/60 text-[8px] font-semibold text-white/80 border border-white/20">4K</div>
+                    </div>
+                    <div class="mt-1.5 text-center">
+                      <div class="font-bold text-xs text-white truncate">飞月情海</div>
+                      <div class="text-[10px] text-gray-400">2024 · 爱情 / 剧情</div>
+                    </div>
+                  </div>
+
+                  <!-- 哈利波特 -->
+                  <div onclick="openPlayerModal('哈利波特与魔法石', '电影')" class="pc-card cursor-pointer">
+                    <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-card border border-white/10 shadow">
+                      <img src="https://images.unsplash.com/photo-1542204165-65bf26472b9b?w=300" class="w-full h-full object-cover">
+                      <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 backdrop-blur text-[10px] font-bold text-amber-400 border border-amber-400/30">9.2</div>
+                      <div class="absolute bottom-1.5 right-1.5 px-1 py-0.2 rounded bg-black/60 text-[8px] font-semibold text-white/80 border border-white/20">4K 原盘</div>
+                    </div>
+                    <div class="mt-1.5 text-center">
+                      <div class="font-bold text-xs text-white truncate">哈利波特与魔法石</div>
+                      <div class="text-[10px] text-gray-400">2001 · 奇幻 / 冒险</div>
+                    </div>
+                  </div>
+
+                  <!-- 奥本海默 -->
+                  <div onclick="openPlayerModal('奥本海默', '电影')" class="pc-card cursor-pointer">
+                    <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-card border border-white/10 shadow">
+                      <img src="https://images.unsplash.com/photo-1534447677768-be436bb09401?w=300" class="w-full h-full object-cover">
+                      <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 backdrop-blur text-[10px] font-bold text-amber-400 border border-amber-400/30">8.9</div>
+                      <div class="absolute bottom-1.5 right-1.5 px-1 py-0.2 rounded bg-black/60 text-[8px] font-semibold text-white/80 border border-white/20">IMAX 4K</div>
+                    </div>
+                    <div class="mt-1.5 text-center">
+                      <div class="font-bold text-xs text-white truncate">奥本海默</div>
+                      <div class="text-[10px] text-gray-400">2023 · 传记 / 历史</div>
+                    </div>
+                  </div>
+
+                  <!-- 沙丘2 -->
+                  <div onclick="openPlayerModal('沙丘2', '电影')" class="pc-card cursor-pointer">
+                    <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-card border border-white/10 shadow">
+                      <img src="https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=300" class="w-full h-full object-cover">
+                      <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 backdrop-blur text-[10px] font-bold text-amber-400 border border-amber-400/30">8.6</div>
+                      <div class="absolute bottom-1.5 right-1.5 px-1 py-0.2 rounded bg-black/60 text-[8px] font-semibold text-white/80 border border-white/20">4K 杜比视界</div>
+                    </div>
+                    <div class="mt-1.5 text-center">
+                      <div class="font-bold text-xs text-white truncate">沙丘2</div>
+                      <div class="text-[10px] text-gray-400">2024 · 科幻 / 史诗</div>
+                    </div>
+                  </div>
+
+                  <!-- 星际穿越 -->
+                  <div onclick="openPlayerModal('星际穿越', '电影')" class="pc-card cursor-pointer">
+                    <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-card border border-white/10 shadow">
+                      <img src="https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?w=300" class="w-full h-full object-cover">
+                      <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 backdrop-blur text-[10px] font-bold text-amber-400 border border-amber-400/30">9.4</div>
+                      <div class="absolute bottom-1.5 right-1.5 px-1 py-0.2 rounded bg-black/60 text-[8px] font-semibold text-white/80 border border-white/20">4K HDR</div>
+                    </div>
+                    <div class="mt-1.5 text-center">
+                      <div class="font-bold text-xs text-white truncate">星际穿越</div>
+                      <div class="text-[10px] text-gray-400">2014 · 经典科幻</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 5. 动漫 / 新番专区 (包含所有类型补全) -->
+              <div>
+                <div class="flex items-center justify-between mb-2.5">
+                  <button onclick="openCategoryFilter('anime')" class="group flex items-center space-x-1.5 text-sm font-bold text-white hover:text-blue-400 transition">
+                    <span>动漫 & 新番</span>
+                    <span class="text-gray-500 group-hover:text-blue-400 font-normal">›</span>
+                  </button>
+                </div>
+                <div class="grid grid-cols-6 gap-3.5">
+                  <div onclick="openPlayerModal('葬送的芙莉莲 第1集', '动漫')" class="pc-card cursor-pointer">
+                    <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-card border border-white/10 shadow">
+                      <img src="https://images.unsplash.com/photo-1578632767115-351597cf2477?w=300" class="w-full h-full object-cover">
+                      <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 text-[10px] font-bold text-amber-400">9.5</div>
+                      <div class="absolute bottom-1.5 right-1.5 px-1 py-0.2 rounded bg-black/60 text-[8px] text-white">1080P</div>
+                    </div>
+                    <div class="mt-1.5 text-center">
+                      <div class="font-bold text-xs text-white truncate">葬送的芙莉莲</div>
+                      <div class="text-[10px] text-gray-400">共 28 集 · 奇幻</div>
+                    </div>
+                  </div>
+
+                  <div onclick="openPlayerModal('间谍过家家 第1集', '动漫')" class="pc-card cursor-pointer">
+                    <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-card border border-white/10 shadow">
+                      <img src="https://images.unsplash.com/photo-1563089145-599997674d42?w=300" class="w-full h-full object-cover">
+                      <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 text-[10px] font-bold text-amber-400">9.1</div>
+                      <div class="absolute bottom-1.5 right-1.5 px-1 py-0.2 rounded bg-black/60 text-[8px] text-white">4K</div>
+                    </div>
+                    <div class="mt-1.5 text-center">
+                      <div class="font-bold text-xs text-white truncate">间谍过家家</div>
+                      <div class="text-[10px] text-gray-400">共 2 季 · 搞笑</div>
+                    </div>
+                  </div>
+
+                  <div onclick="openPlayerModal('鬼灭之刃 柱训练篇', '动漫')" class="pc-card cursor-pointer">
+                    <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-card border border-white/10 shadow">
+                      <img src="https://images.unsplash.com/photo-1534447677768-be436bb09401?w=300" class="w-full h-full object-cover">
+                      <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 text-[10px] font-bold text-amber-400">8.9</div>
+                      <div class="absolute bottom-1.5 right-1.5 px-1 py-0.2 rounded bg-black/60 text-[8px] text-white">1080P</div>
+                    </div>
+                    <div class="mt-1.5 text-center">
+                      <div class="font-bold text-xs text-white truncate">鬼灭之刃 柱训练篇</div>
+                      <div class="text-[10px] text-gray-400">2024 · 热血</div>
+                    </div>
+                  </div>
+
+                  <div onclick="openPlayerModal('咒术回战 涉谷事变', '动漫')" class="pc-card cursor-pointer">
+                    <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-card border border-white/10 shadow">
+                      <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=300" class="w-full h-full object-cover">
+                      <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 text-[10px] font-bold text-amber-400">9.0</div>
+                      <div class="absolute bottom-1.5 right-1.5 px-1 py-0.2 rounded bg-black/60 text-[8px] text-white">4K</div>
+                    </div>
+                    <div class="mt-1.5 text-center">
+                      <div class="font-bold text-xs text-white truncate">咒术回战 涉谷篇</div>
+                      <div class="text-[10px] text-gray-400">共 23 集 · 战斗</div>
+                    </div>
+                  </div>
+
+                  <div onclick="openPlayerModal('进击的巨人 最终季', '动漫')" class="pc-card cursor-pointer">
+                    <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-card border border-white/10 shadow">
+                      <img src="https://images.unsplash.com/photo-1579783902614-a3fb3927b675?w=300" class="w-full h-full object-cover">
+                      <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 text-[10px] font-bold text-amber-400">9.8</div>
+                      <div class="absolute bottom-1.5 right-1.5 px-1 py-0.2 rounded bg-black/60 text-[8px] text-white">1080P</div>
+                    </div>
+                    <div class="mt-1.5 text-center">
+                      <div class="font-bold text-xs text-white truncate">进击的巨人 完结篇</div>
+                      <div class="text-[10px] text-gray-400">神作完结</div>
+                    </div>
+                  </div>
+
+                  <div onclick="openPlayerModal('海贼王 蛋头岛篇', '动漫')" class="pc-card cursor-pointer">
+                    <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-card border border-white/10 shadow">
+                      <img src="https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=300" class="w-full h-full object-cover">
+                      <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 text-[10px] font-bold text-amber-400">9.3</div>
+                      <div class="absolute bottom-1.5 right-1.5 px-1 py-0.2 rounded bg-black/60 text-[8px] text-white">1080P</div>
+                    </div>
+                    <div class="mt-1.5 text-center">
+                      <div class="font-bold text-xs text-white truncate">航海王 蛋头岛篇</div>
+                      <div class="text-[10px] text-gray-400">第 1118 集</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 6. 系列合集 / 宇宙电影专区 -->
+              <div>
+                <div class="flex items-center justify-between mb-2.5">
+                  <button onclick="openDetailView('collection')" class="group flex items-center space-x-1.5 text-sm font-bold text-white hover:text-blue-400 transition">
+                    <span>精选系列合集</span>
+                    <span class="text-gray-500 group-hover:text-blue-400 font-normal">›</span>
+                  </button>
+                </div>
+                <div class="grid grid-cols-4 gap-4">
+                  <!-- 哈利波特系列合集 -->
+                  <div onclick="openDetailView('collection')" class="bg-card bg-card-hover rounded-xl overflow-hidden border border-white/10 cursor-pointer pc-card group">
+                    <div class="relative h-28 bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1542204165-65bf26472b9b?w=600');">
+                      <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
+                      <span class="absolute bottom-2 left-3 font-bold text-sm text-white">哈利·波特全集</span>
+                      <span class="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-blue-600 text-[10px] font-semibold text-white">共 8 部</span>
+                    </div>
+                    <div class="p-2.5 text-xs text-gray-400">从魔法石到死亡圣器，霍格沃茨传奇魔法旅程。</div>
+                  </div>
+
+                  <!-- 漫威电影宇宙 -->
+                  <div onclick="showToast('已进入漫威电影宇宙合集 (共33部)')" class="bg-card bg-card-hover rounded-xl overflow-hidden border border-white/10 cursor-pointer pc-card group">
+                    <div class="relative h-28 bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=600');">
+                      <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
+                      <span class="absolute bottom-2 left-3 font-bold text-sm text-white">漫威电影宇宙 MCU</span>
+                      <span class="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-red-600 text-[10px] font-semibold text-white">共 33 部</span>
+                    </div>
+                    <div class="p-2.5 text-xs text-gray-400">复仇者联盟、钢铁侠、无限传奇全阶段收录。</div>
+                  </div>
+
+                  <!-- 指环王三部曲 -->
+                  <div onclick="showToast('已进入指环王三部曲导剪版')" class="bg-card bg-card-hover rounded-xl overflow-hidden border border-white/10 cursor-pointer pc-card group">
+                    <div class="relative h-28 bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=600');">
+                      <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
+                      <span class="absolute bottom-2 left-3 font-bold text-sm text-white">指环王三部曲 (加长版)</span>
+                      <span class="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-amber-600 text-[10px] font-semibold text-white">4K HDR</span>
+                    </div>
+                    <div class="p-2.5 text-xs text-gray-400">中土世界史诗巨作，托尔金魔幻巅峰。</div>
+                  </div>
+
+                  <!-- 碟中谍系列 -->
+                  <div onclick="showToast('已进入碟中谍全系列合集')" class="bg-card bg-card-hover rounded-xl overflow-hidden border border-white/10 cursor-pointer pc-card group">
+                    <div class="relative h-28 bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1485846234645-a62644f84728?w=600');">
+                      <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent"></div>
+                      <span class="absolute bottom-2 left-3 font-bold text-sm text-white">碟中谍全系列 (1~7)</span>
+                      <span class="absolute top-2 right-2 px-1.5 py-0.5 rounded bg-blue-600 text-[10px] font-semibold text-white">共 7 部</span>
+                    </div>
+                    <div class="p-2.5 text-xs text-gray-400">阿汤哥经典极限特工谍战大片全收录。</div>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <!-- PC 视图 2: 剧集详情 (对齐图2) -->
-            <div id="pc-view-detail" class="hidden space-y-6">
-              <div class="relative rounded-2xl overflow-hidden bg-gradient-to-t from-[#0d0e12] via-[#0d0e12]/80 to-transparent min-h-[340px] flex flex-col justify-end p-8 border border-white/10">
-                <!-- 大背景图 -->
+
+            <!-- ==================== B. 媒体库全量分类浏览与多维筛选页 ==================== -->
+            <div id="pc-view-category" class="hidden space-y-6">
+              <!-- 分类页标题与返回 -->
+              <div class="flex items-center justify-between border-b border-white/10 pb-4">
+                <div class="flex items-center space-x-3">
+                  <button onclick="pcShowView('home')" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-gray-300 flex items-center justify-center">‹</button>
+                  <h3 id="cat-view-title" class="font-extrabold text-xl text-white">电视剧库 (641 部)</h3>
+                </div>
+                <div class="flex items-center space-x-2 text-xs text-gray-400">
+                  <span>排序：</span>
+                  <select class="bg-white/10 border border-white/10 text-white rounded-lg px-2.5 py-1 text-xs">
+                    <option>最新入库</option>
+                    <option>TMDB 评分最高</option>
+                    <option>首播年份</option>
+                    <option>名称 A-Z</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- 飞牛标准多维度筛选标签栏 -->
+              <div class="bg-card p-4 rounded-2xl border border-white/5 space-y-3 text-xs">
+                <!-- 维度 1: 类型 -->
+                <div class="flex items-center space-x-2">
+                  <span class="text-gray-500 w-12 font-medium">类型：</span>
+                  <div class="flex flex-wrap gap-1.5">
+                    <button class="px-2.5 py-1 rounded-md bg-blue-600 text-white font-medium">全部</button>
+                    <button class="px-2.5 py-1 rounded-md text-gray-400 hover:text-white hover:bg-white/5">剧情</button>
+                    <button class="px-2.5 py-1 rounded-md text-gray-400 hover:text-white hover:bg-white/5">喜剧</button>
+                    <button class="px-2.5 py-1 rounded-md text-gray-400 hover:text-white hover:bg-white/5">动作</button>
+                    <button class="px-2.5 py-1 rounded-md text-gray-400 hover:text-white hover:bg-white/5">科幻</button>
+                    <button class="px-2.5 py-1 rounded-md text-gray-400 hover:text-white hover:bg-white/5">悬疑</button>
+                    <button class="px-2.5 py-1 rounded-md text-gray-400 hover:text-white hover:bg-white/5">爱情</button>
+                    <button class="px-2.5 py-1 rounded-md text-gray-400 hover:text-white hover:bg-white/5">犯罪</button>
+                    <button class="px-2.5 py-1 rounded-md text-gray-400 hover:text-white hover:bg-white/5">历史</button>
+                  </div>
+                </div>
+
+                <!-- 维度 2: 地区 -->
+                <div class="flex items-center space-x-2">
+                  <span class="text-gray-500 w-12 font-medium">地区：</span>
+                  <div class="flex flex-wrap gap-1.5">
+                    <button class="px-2.5 py-1 rounded-md bg-blue-600 text-white font-medium">全部</button>
+                    <button class="px-2.5 py-1 rounded-md text-gray-400 hover:text-white hover:bg-white/5">中国大陆</button>
+                    <button class="px-2.5 py-1 rounded-md text-gray-400 hover:text-white hover:bg-white/5">美国</button>
+                    <button class="px-2.5 py-1 rounded-md text-gray-400 hover:text-white hover:bg-white/5">日本</button>
+                    <button class="px-2.5 py-1 rounded-md text-gray-400 hover:text-white hover:bg-white/5">韩国</button>
+                    <button class="px-2.5 py-1 rounded-md text-gray-400 hover:text-white hover:bg-white/5">中国香港</button>
+                    <button class="px-2.5 py-1 rounded-md text-gray-400 hover:text-white hover:bg-white/5">英国</button>
+                  </div>
+                </div>
+
+                <!-- 维度 3: 年份 -->
+                <div class="flex items-center space-x-2">
+                  <span class="text-gray-500 w-12 font-medium">年份：</span>
+                  <div class="flex flex-wrap gap-1.5">
+                    <button class="px-2.5 py-1 rounded-md bg-blue-600 text-white font-medium">全部</button>
+                    <button class="px-2.5 py-1 rounded-md text-gray-400 hover:text-white hover:bg-white/5">2026</button>
+                    <button class="px-2.5 py-1 rounded-md text-gray-400 hover:text-white hover:bg-white/5">2025</button>
+                    <button class="px-2.5 py-1 rounded-md text-gray-400 hover:text-white hover:bg-white/5">2024</button>
+                    <button class="px-2.5 py-1 rounded-md text-gray-400 hover:text-white hover:bg-white/5">2023</button>
+                    <button class="px-2.5 py-1 rounded-md text-gray-400 hover:text-white hover:bg-white/5">2020年代</button>
+                    <button class="px-2.5 py-1 rounded-md text-gray-400 hover:text-white hover:bg-white/5">2010年代</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 多维筛选结果网格 (6 列瀑布流海报墙) -->
+              <div class="grid grid-cols-6 gap-4">
+                <div onclick="openDetailView('smalltown')" class="pc-card cursor-pointer">
+                  <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-card border border-white/10 shadow">
+                    <img src="https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?w=300" class="w-full h-full object-cover">
+                    <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 text-[10px] font-bold text-amber-400">9.0</div>
+                    <div class="absolute bottom-1.5 right-1.5 px-1 py-0.2 rounded bg-black/60 text-[8px] text-white">1080P</div>
+                  </div>
+                  <div class="mt-1.5 text-center">
+                    <div class="font-bold text-xs text-white truncate">小城良方</div>
+                    <div class="text-[10px] text-gray-400">2026 · 29集</div>
+                  </div>
+                </div>
+
+                <div onclick="openPlayerModal('生活大爆炸', '电视剧')" class="pc-card cursor-pointer">
+                  <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-card border border-white/10 shadow">
+                    <img src="https://image.tmdb.org/t/p/w500/ooBGRQBdnvvMeISegQ1vToCvdGw.jpg" class="w-full h-full object-cover">
+                    <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 text-[10px] font-bold text-amber-400">9.7</div>
+                    <div class="absolute bottom-1.5 right-1.5 px-1 py-0.2 rounded bg-black/60 text-[8px] text-white">4K</div>
+                  </div>
+                  <div class="mt-1.5 text-center">
+                    <div class="font-bold text-xs text-white truncate">生活大爆炸</div>
+                    <div class="text-[10px] text-gray-400">12 季 · 喜剧</div>
+                  </div>
+                </div>
+
+                <div onclick="openPlayerModal('刺客旅馆', '电视剧')" class="pc-card cursor-pointer">
+                  <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-card border border-white/10 shadow">
+                    <img src="https://image.tmdb.org/t/p/w500/A7SpnCg08Xw81h6x48kS2G0u01U.jpg" class="w-full h-full object-cover">
+                    <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 text-[10px] font-bold text-amber-400">8.8</div>
+                    <div class="absolute bottom-1.5 right-1.5 px-1 py-0.2 rounded bg-black/60 text-[8px] text-white">4K</div>
+                  </div>
+                  <div class="mt-1.5 text-center">
+                    <div class="font-bold text-xs text-white truncate">刺客旅馆</div>
+                    <div class="text-[10px] text-gray-400">2023 · 动作</div>
+                  </div>
+                </div>
+
+                <div onclick="openPlayerModal('小谢尔顿', '电视剧')" class="pc-card cursor-pointer">
+                  <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-card border border-white/10 shadow">
+                    <img src="https://image.tmdb.org/t/p/w500/MpdmsM9nC9qC2y6Nq4lR6L7Jz4.jpg" class="w-full h-full object-cover">
+                    <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 text-[10px] font-bold text-amber-400">9.7</div>
+                    <div class="absolute bottom-1.5 right-1.5 px-1 py-0.2 rounded bg-black/60 text-[8px] text-white">4K</div>
+                  </div>
+                  <div class="mt-1.5 text-center">
+                    <div class="font-bold text-xs text-white truncate">小谢尔顿</div>
+                    <div class="text-[10px] text-gray-400">7 季 · 喜剧</div>
+                  </div>
+                </div>
+
+                <div onclick="openPlayerModal('摩登家庭', '电视剧')" class="pc-card cursor-pointer">
+                  <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-card border border-white/10 shadow">
+                    <img src="https://image.tmdb.org/t/p/w500/glvd7uQ1SgH2rVbFh8K6x7j9jQ.jpg" class="w-full h-full object-cover">
+                    <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 text-[10px] font-bold text-amber-400">9.5</div>
+                    <div class="absolute bottom-1.5 right-1.5 px-1 py-0.2 rounded bg-black/60 text-[8px] text-white">4K</div>
+                  </div>
+                  <div class="mt-1.5 text-center">
+                    <div class="font-bold text-xs text-white truncate">摩登家庭</div>
+                    <div class="text-[10px] text-gray-400">11 季 · 喜剧</div>
+                  </div>
+                </div>
+
+                <div onclick="openPlayerModal('破产姐妹', '电视剧')" class="pc-card cursor-pointer">
+                  <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-card border border-white/10 shadow">
+                    <img src="https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=300" class="w-full h-full object-cover">
+                    <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 text-[10px] font-bold text-amber-400">9.1</div>
+                    <div class="absolute bottom-1.5 right-1.5 px-1 py-0.2 rounded bg-black/60 text-[8px] text-white">4K</div>
+                  </div>
+                  <div class="mt-1.5 text-center">
+                    <div class="font-bold text-xs text-white truncate">破产姐妹</div>
+                    <div class="text-[10px] text-gray-400">6 季 · 喜剧</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+
+            <!-- ==================== C. 电视剧详情视图 (对齐图2《小城良方》) ==================== -->
+            <div id="pc-view-detail-tv" class="hidden space-y-6">
+              <!-- 沉浸式 Hero Banner -->
+              <div class="relative rounded-2xl overflow-hidden bg-gradient-to-t from-[#0c0d11] via-[#0c0d11]/80 to-transparent min-h-[350px] flex flex-col justify-end p-8 border border-white/10">
                 <div class="absolute inset-0 z-0 bg-cover bg-center opacity-35" style="background-image: url('https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?w=1200');"></div>
-                <div class="absolute inset-0 z-0 bg-gradient-to-t from-[#0d0e12] via-[#0d0e12]/70 to-transparent"></div>
+                <div class="absolute inset-0 z-0 bg-gradient-to-t from-[#0c0d11] via-[#0c0d11]/70 to-transparent"></div>
                 <button onclick="pcShowView('home')" class="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-black/50 text-white/70 hover:text-white flex items-center justify-center border border-white/10">✕</button>
 
-                <!-- 剧集主元信息 -->
+                <!-- 剧集信息 (严格还原截图2) -->
                 <div class="relative z-10 space-y-3">
                   <div class="flex items-center space-x-3">
                     <span class="text-3xl font-extrabold text-amber-400 tracking-wider">小城良方</span>
@@ -469,9 +951,9 @@
                     简介：讲述了当天才医生刘铮亮遭遇人生滑铁卢，被迫返回家乡从零开始的故事。他就地集结一群“不靠谱”的人，热血操刀着“最靠谱”的事，在烟火气中以人情暖意编织市井日常，开出一剂治疗心灵的人生处方。 &gt;&gt;
                   </p>
 
-                  <!-- 播放与操作按钮 -->
+                  <!-- 核心操作按钮 -->
                   <div class="flex items-center space-x-3 pt-2">
-                    <button onclick="pcShowToast('正在调用 libmpv 播放第 10 集')" class="px-5 py-2 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs flex items-center space-x-2 shadow-lg shadow-blue-600/30 transition">
+                    <button onclick="openPlayerModal('小城良方 - 第10集', '电视剧')" class="px-5 py-2 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs flex items-center space-x-2 shadow-lg shadow-blue-600/30 transition">
                       <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                       <span>续播</span>
                     </button>
@@ -481,7 +963,7 @@
                     <button class="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-xs text-white transition">操作</button>
                   </div>
 
-                  <!-- 播放进度条 -->
+                  <!-- 进度指示条 -->
                   <div class="pt-2 flex items-center space-x-2 text-[10px] text-gray-400">
                     <div class="w-48 h-1 rounded-full bg-white/20 overflow-hidden">
                       <div class="h-full bg-blue-500 w-2/5"></div>
@@ -491,7 +973,7 @@
                 </div>
               </div>
 
-              <!-- 剧集列表 3 列卡片网格 -->
+              <!-- 剧集列表 3 列卡片网格 (严格对齐图2) -->
               <div>
                 <div class="flex items-center justify-between mb-3">
                   <div class="flex items-center space-x-2">
@@ -506,7 +988,7 @@
 
                 <div class="grid grid-cols-3 gap-3">
                   <!-- 第 1 集 -->
-                  <div onclick="pcShowToast('正在播放第 1 集')" class="bg-card bg-card-hover p-2.5 rounded-xl border border-white/5 cursor-pointer flex space-x-3 items-center pc-card">
+                  <div onclick="openPlayerModal('小城良方 - 第1集 亮仔变老铁', '电视剧')" class="bg-card bg-card-hover p-2.5 rounded-xl border border-white/5 cursor-pointer flex space-x-3 items-center pc-card">
                     <div class="w-24 h-14 rounded-lg bg-cover bg-center flex-shrink-0" style="background-image: url('https://images.unsplash.com/photo-1594909122845-11baa439b7bf?w=200');"></div>
                     <div class="flex-1 min-w-0">
                       <div class="font-bold text-xs text-white truncate">第1集 - 亮仔变老铁</div>
@@ -515,7 +997,7 @@
                   </div>
 
                   <!-- 第 2 集 -->
-                  <div onclick="pcShowToast('正在播放第 2 集')" class="bg-card bg-card-hover p-2.5 rounded-xl border border-white/5 cursor-pointer flex space-x-3 items-center pc-card">
+                  <div onclick="openPlayerModal('小城良方 - 第2集 心机院长强制定爱', '电视剧')" class="bg-card bg-card-hover p-2.5 rounded-xl border border-white/5 cursor-pointer flex space-x-3 items-center pc-card">
                     <div class="w-24 h-14 rounded-lg bg-cover bg-center flex-shrink-0" style="background-image: url('https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?w=200');"></div>
                     <div class="flex-1 min-w-0">
                       <div class="font-bold text-xs text-white truncate">第2集 - 心机院长强制定爱</div>
@@ -524,7 +1006,7 @@
                   </div>
 
                   <!-- 第 3 集 -->
-                  <div onclick="pcShowToast('正在播放第 3 集')" class="bg-card bg-card-hover p-2.5 rounded-xl border border-white/5 cursor-pointer flex space-x-3 items-center pc-card">
+                  <div onclick="openPlayerModal('小城良方 - 第3集 摸鱼败将', '电视剧')" class="bg-card bg-card-hover p-2.5 rounded-xl border border-white/5 cursor-pointer flex space-x-3 items-center pc-card">
                     <div class="w-24 h-14 rounded-lg bg-cover bg-center flex-shrink-0" style="background-image: url('https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=200');"></div>
                     <div class="flex-1 min-w-0">
                       <div class="font-bold text-xs text-white truncate">第3集 - 摸鱼败将</div>
@@ -533,7 +1015,7 @@
                   </div>
 
                   <!-- 第 4 集 -->
-                  <div onclick="pcShowToast('正在播放第 4 集')" class="bg-card bg-card-hover p-2.5 rounded-xl border border-white/5 cursor-pointer flex space-x-3 items-center pc-card">
+                  <div onclick="openPlayerModal('小城良方 - 第4集 不速之客俏羊驼', '电视剧')" class="bg-card bg-card-hover p-2.5 rounded-xl border border-white/5 cursor-pointer flex space-x-3 items-center pc-card">
                     <div class="w-24 h-14 rounded-lg bg-cover bg-center flex-shrink-0" style="background-image: url('https://images.unsplash.com/photo-1616530940355-351fabd9524b?w=200');"></div>
                     <div class="flex-1 min-w-0">
                       <div class="font-bold text-xs text-white truncate">第4集 - 不速之客俏羊驼</div>
@@ -542,7 +1024,7 @@
                   </div>
 
                   <!-- 第 5 集 -->
-                  <div onclick="pcShowToast('正在播放第 5 集')" class="bg-card bg-card-hover p-2.5 rounded-xl border border-white/5 cursor-pointer flex space-x-3 items-center pc-card">
+                  <div onclick="openPlayerModal('小城良方 - 第5集 棺材板压不住的对家', '电视剧')" class="bg-card bg-card-hover p-2.5 rounded-xl border border-white/5 cursor-pointer flex space-x-3 items-center pc-card">
                     <div class="w-24 h-14 rounded-lg bg-cover bg-center flex-shrink-0" style="background-image: url('https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=200');"></div>
                     <div class="flex-1 min-w-0">
                       <div class="font-bold text-xs text-white truncate">第5集 - 棺材板压不住的对家</div>
@@ -551,7 +1033,7 @@
                   </div>
 
                   <!-- 第 6 集 -->
-                  <div onclick="pcShowToast('正在播放第 6 集')" class="bg-card bg-card-hover p-2.5 rounded-xl border border-white/5 cursor-pointer flex space-x-3 items-center pc-card">
+                  <div onclick="openPlayerModal('小城良方 - 第6集 13个小宝贝但0用', '电视剧')" class="bg-card bg-card-hover p-2.5 rounded-xl border border-white/5 cursor-pointer flex space-x-3 items-center pc-card">
                     <div class="w-24 h-14 rounded-lg bg-cover bg-center flex-shrink-0" style="background-image: url('https://images.unsplash.com/photo-1501386761578-eac5c94b800a?w=200');"></div>
                     <div class="flex-1 min-w-0">
                       <div class="font-bold text-xs text-white truncate">第6集 - 13个小宝贝但0用</div>
@@ -561,6 +1043,152 @@
                 </div>
               </div>
             </div>
+
+
+            <!-- ==================== D. 电影专属详情视图 (如《死侍与金刚狼》) ==================== -->
+            <div id="pc-view-detail-movie" class="hidden space-y-6">
+              <!-- 电影全景 Hero 封面 -->
+              <div class="relative rounded-2xl overflow-hidden bg-gradient-to-t from-[#0c0d11] via-[#0c0d11]/80 to-transparent min-h-[380px] flex flex-col justify-end p-8 border border-white/10">
+                <div class="absolute inset-0 z-0 bg-cover bg-center opacity-30" style="background-image: url('https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=1200');"></div>
+                <div class="absolute inset-0 z-0 bg-gradient-to-t from-[#0c0d11] via-[#0c0d11]/70 to-transparent"></div>
+                <button onclick="pcShowView('home')" class="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-black/50 text-white/70 hover:text-white flex items-center justify-center border border-white/10">✕</button>
+
+                <div class="relative z-10 space-y-3">
+                  <div class="flex items-center space-x-3">
+                    <span class="text-3xl font-black text-white">死侍与金刚狼</span>
+                    <span class="text-2xl font-bold text-amber-400">7.1</span>
+                    <span class="text-xs text-gray-400">Deadpool &amp; Wolverine</span>
+                  </div>
+                  <div class="flex items-center space-x-3 text-xs text-gray-300">
+                    <span>128 分钟</span>
+                    <span>•</span>
+                    <span>2024 年</span>
+                    <span>•</span>
+                    <span>美国</span>
+                    <span>•</span>
+                    <span>动作 / 科幻 / 喜剧</span>
+                    <span class="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/30 text-[10px] font-bold">4K HDR10</span>
+                    <span class="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30 text-[10px] font-bold">Dolby Atmos EAC3</span>
+                  </div>
+                  <p class="text-xs text-gray-300 max-w-2xl leading-relaxed">
+                    剧情简介：漫威电影宇宙重大转折点！韦德·威尔逊（死侍）在经历了中年危机后，时间变异管理局（TVA）打破了他的平静生活。为了拯救自己所珍视的一切，他必须与宿命老友金刚狼罗根联手对抗虚空中的可怕危机。
+                  </p>
+
+                  <!-- 电影播放与操作大按钮 -->
+                  <div class="flex items-center space-x-3 pt-2">
+                    <button onclick="openPlayerModal('死侍与金刚狼 (2024)', '电影')" class="px-6 py-2.5 rounded-full bg-red-600 hover:bg-red-500 text-white font-bold text-xs flex items-center space-x-2 shadow-lg shadow-red-600/30 transition">
+                      <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                      <span>立即播放 (4K HDR)</span>
+                    </button>
+                    <button onclick="showToast('正在加载预告片流')" class="px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white text-xs font-medium transition">预告片</button>
+                    <button class="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/></svg></button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 演职员表 (Cast & Crew) -->
+              <div>
+                <h3 class="font-bold text-sm text-white mb-3">演职员表</h3>
+                <div class="grid grid-cols-6 gap-3">
+                  <div class="bg-card p-3 rounded-xl border border-white/5 flex flex-col items-center text-center">
+                    <div class="w-14 h-14 rounded-full bg-cover bg-center mb-2" style="background-image: url('https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150');"></div>
+                    <div class="font-bold text-xs text-white">肖恩·利维</div>
+                    <div class="text-[10px] text-gray-500 mt-0.5">导演</div>
+                  </div>
+                  <div class="bg-card p-3 rounded-xl border border-white/5 flex flex-col items-center text-center">
+                    <div class="w-14 h-14 rounded-full bg-cover bg-center mb-2" style="background-image: url('https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150');"></div>
+                    <div class="font-bold text-xs text-white">瑞安·雷诺兹</div>
+                    <div class="text-[10px] text-gray-500 mt-0.5">饰 韦德·威尔逊 / 死侍</div>
+                  </div>
+                  <div class="bg-card p-3 rounded-xl border border-white/5 flex flex-col items-center text-center">
+                    <div class="w-14 h-14 rounded-full bg-cover bg-center mb-2" style="background-image: url('https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150');"></div>
+                    <div class="font-bold text-xs text-white">休·杰克曼</div>
+                    <div class="text-[10px] text-gray-500 mt-0.5">饰 罗根 / 金刚狼</div>
+                  </div>
+                  <div class="bg-card p-3 rounded-xl border border-white/5 flex flex-col items-center text-center">
+                    <div class="w-14 h-14 rounded-full bg-cover bg-center mb-2" style="background-image: url('https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150');"></div>
+                    <div class="font-bold text-xs text-white">艾玛·科林</div>
+                    <div class="text-[10px] text-gray-500 mt-0.5">饰 卡桑德拉·诺瓦</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 媒体技术参数面板 (飞牛硬核属性) -->
+              <div class="bg-card p-4 rounded-xl border border-white/5 space-y-2">
+                <h4 class="font-bold text-xs text-gray-300">媒体文件技术指标 (夸克网盘挂载点提供)</h4>
+                <div class="grid grid-cols-4 gap-2 text-[11px] text-gray-400">
+                  <div>• 文件名：<span class="text-white">Deadpool.and.Wolverine.2024.2160p.mkv</span></div>
+                  <div>• 视频编码：<span class="text-emerald-400 font-mono">HEVC Main 10 (10bit)</span></div>
+                  <div>• 音频轨道：<span class="text-blue-400 font-mono">Dolby Atmos EAC3 5.1</span></div>
+                  <div>• 容器大小：<span class="text-white font-mono">18.6 GB</span></div>
+                </div>
+              </div>
+            </div>
+
+
+            <!-- ==================== E. 系列合集详情视图 (如《哈利·波特全集》) ==================== -->
+            <div id="pc-view-detail-collection" class="hidden space-y-6">
+              <div class="flex items-center justify-between border-b border-white/10 pb-4">
+                <div class="flex items-center space-x-3">
+                  <button onclick="pcShowView('home')" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-gray-300 flex items-center justify-center">‹</button>
+                  <div>
+                    <h3 class="font-extrabold text-xl text-white">哈利·波特全集 (Harry Potter Collection)</h3>
+                    <p class="text-xs text-gray-400 mt-0.5">共收录 8 部电影 · 魔法世界全纪元 · 支持顺序连续播放</p>
+                  </div>
+                </div>
+                <button onclick="openPlayerModal('哈利波特与魔法石 (第1部)', '电影')" class="px-5 py-2 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-medium text-xs flex items-center space-x-1.5 shadow-lg">
+                  <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                  <span>从第 1 部连续播放</span>
+                </button>
+              </div>
+
+              <div class="grid grid-cols-4 gap-4">
+                <div onclick="openPlayerModal('哈利·波特与魔法石', '电影')" class="bg-card p-3 rounded-xl border border-white/5 cursor-pointer pc-card">
+                  <div class="aspect-[2/3] rounded-lg overflow-hidden bg-cover bg-center mb-2" style="background-image: url('https://images.unsplash.com/photo-1542204165-65bf26472b9b?w=300');"></div>
+                  <div class="font-bold text-xs text-white">第 1 部：哈利·波特与魔法石 (2001)</div>
+                  <div class="text-[10px] text-gray-400 mt-0.5">152分钟 · 9.2分</div>
+                </div>
+                <div onclick="openPlayerModal('哈利·波特与密室', '电影')" class="bg-card p-3 rounded-xl border border-white/5 cursor-pointer pc-card">
+                  <div class="aspect-[2/3] rounded-lg overflow-hidden bg-cover bg-center mb-2" style="background-image: url('https://images.unsplash.com/photo-1518791841217-8f162f1e1131?w=300');"></div>
+                  <div class="font-bold text-xs text-white">第 2 部：哈利·波特与密室 (2002)</div>
+                  <div class="text-[10px] text-gray-400 mt-0.5">161分钟 · 8.9分</div>
+                </div>
+                <div onclick="openPlayerModal('哈利·波特与阿兹卡班的囚徒', '电影')" class="bg-card p-3 rounded-xl border border-white/5 cursor-pointer pc-card">
+                  <div class="aspect-[2/3] rounded-lg overflow-hidden bg-cover bg-center mb-2" style="background-image: url('https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=300');"></div>
+                  <div class="font-bold text-xs text-white">第 3 部：阿兹卡班的囚徒 (2004)</div>
+                  <div class="text-[10px] text-gray-400 mt-0.5">142分钟 · 9.1分</div>
+                </div>
+                <div onclick="openPlayerModal('哈利·波特与火焰杯', '电影')" class="bg-card p-3 rounded-xl border border-white/5 cursor-pointer pc-card">
+                  <div class="aspect-[2/3] rounded-lg overflow-hidden bg-cover bg-center mb-2" style="background-image: url('https://images.unsplash.com/photo-1534447677768-be436bb09401?w=300');"></div>
+                  <div class="font-bold text-xs text-white">第 4 部：哈利·波特与火焰杯 (2005)</div>
+                  <div class="text-[10px] text-gray-400 mt-0.5">157分钟 · 8.8分</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- ==================== F. 收藏夹视图 ==================== -->
+            <div id="pc-view-favorites" class="hidden space-y-6">
+              <div class="flex items-center justify-between border-b border-white/10 pb-4">
+                <div class="flex items-center space-x-3">
+                  <button onclick="pcShowView('home')" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-gray-300 flex items-center justify-center">‹</button>
+                  <h3 class="font-extrabold text-xl text-white">我的收藏 (1)</h3>
+                </div>
+              </div>
+              <div class="grid grid-cols-6 gap-4">
+                <div onclick="openDetailView('smalltown')" class="pc-card cursor-pointer">
+                  <div class="relative aspect-[2/3] rounded-xl overflow-hidden bg-card border-2 border-blue-500 shadow-lg">
+                    <img src="https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?w=300" class="w-full h-full object-cover">
+                    <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 text-[10px] font-bold text-amber-400">9.0</div>
+                    <div class="absolute bottom-1.5 right-1.5 px-1 py-0.2 rounded bg-blue-600 text-[8px] text-white">已收藏</div>
+                  </div>
+                  <div class="mt-1.5 text-center">
+                    <div class="font-bold text-xs text-white truncate">小城良方</div>
+                    <div class="text-[10px] text-gray-400">2026 · 共 29 集</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </main>
       </div>
@@ -585,11 +1213,10 @@
           </div>
         </div>
 
-        <!-- 移动端内容切换区 -->
+        <!-- 移动端可滚动容器 -->
         <div class="flex-1 overflow-y-auto px-4 pb-20 pt-1 hide-scrollbar" id="mobile-scroll-container">
-          <!-- 移动端视图 1: 首页双列瀑布流 -->
+          <!-- 移动端首页 (涵盖所有类型) -->
           <div id="mobile-view-home" class="space-y-4">
-            <!-- 移动端顶部标题与媒体源状态 -->
             <div class="flex items-center justify-between">
               <div>
                 <h1 class="text-xl font-extrabold text-white">飞牛影视</h1>
@@ -598,23 +1225,34 @@
                   <span>夸克网盘 · 极速连通</span>
                 </p>
               </div>
-              <button onclick="openGlobalSettings('sources')" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-gray-300">
+              <button onclick="openSearchModal()" class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-gray-300">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
               </button>
             </div>
 
-            <!-- 移动端横向滑动分类胶囊 -->
+            <!-- 横向滚动分类胶囊 -->
             <div class="flex space-x-2 overflow-x-auto hide-scrollbar py-1 text-xs">
-              <button class="px-3 py-1.5 rounded-full bg-blue-600 text-white font-medium flex-shrink-0">电视剧 (641)</button>
-              <button class="px-3 py-1.5 rounded-full bg-white/10 text-gray-300 flex-shrink-0">电影 (1562)</button>
-              <button class="px-3 py-1.5 rounded-full bg-white/10 text-gray-300 flex-shrink-0">网课 (510)</button>
-              <button class="px-3 py-1.5 rounded-full bg-white/10 text-gray-300 flex-shrink-0">合集 (888)</button>
+              <button onclick="mobileFilter('tv')" class="px-3 py-1.5 rounded-full bg-blue-600 text-white font-medium flex-shrink-0">电视剧 (641)</button>
+              <button onclick="mobileFilter('movie')" class="px-3 py-1.5 rounded-full bg-white/10 text-gray-300 flex-shrink-0">电影 (1562)</button>
+              <button onclick="mobileFilter('anime')" class="px-3 py-1.5 rounded-full bg-white/10 text-gray-300 flex-shrink-0">动漫新番</button>
+              <button onclick="mobileFilter('class')" class="px-3 py-1.5 rounded-full bg-white/10 text-gray-300 flex-shrink-0">网课纪录片</button>
             </div>
 
-            <!-- 移动端双列海报卡片 (2 Columns) -->
+            <!-- 移动端继续播放横卡 -->
+            <div onclick="openPlayerModal('小城良方 第10集', '电视剧')" class="bg-card p-2.5 rounded-xl border border-white/10 flex items-center space-x-3 cursor-pointer">
+              <div class="w-20 h-12 rounded-lg bg-cover bg-center flex-shrink-0 relative overflow-hidden" style="background-image: url('https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?w=200');">
+                <div class="absolute bottom-0 inset-x-0 h-1 bg-white/30"><div class="h-full bg-blue-500 w-2/5"></div></div>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="font-bold text-xs text-white truncate">续播：小城良方 (第10集)</div>
+                <div class="text-[10px] text-gray-400">已看至 16:15 · 点击直接播</div>
+              </div>
+              <span class="text-blue-400 text-xs">▶</span>
+            </div>
+
+            <!-- 移动端双列海报流 (2 Columns) -->
             <div class="grid grid-cols-2 gap-3">
-              <!-- 卡片 1 (点击进详情) -->
-              <div onclick="mobileShowView('detail')" class="bg-card rounded-xl overflow-hidden border border-blue-500/50 shadow active:scale-95 transition cursor-pointer">
+              <div onclick="openDetailView('smalltown')" class="bg-card rounded-xl overflow-hidden border border-blue-500/50 shadow active:scale-95 transition cursor-pointer">
                 <div class="relative aspect-[2/3] w-full">
                   <img src="https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?w=300" class="w-full h-full object-cover">
                   <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 text-[10px] font-bold text-amber-400">9.0</div>
@@ -622,14 +1260,25 @@
                 </div>
                 <div class="p-2">
                   <div class="font-bold text-xs text-blue-400 truncate">小城良方</div>
-                  <div class="text-[10px] text-gray-400">共 29 集 · 2026</div>
+                  <div class="text-[10px] text-gray-400">2026 · 共29集</div>
                 </div>
               </div>
 
-              <!-- 卡片 2 -->
-              <div onclick="showToast('生活大爆炸')" class="bg-card rounded-xl overflow-hidden border border-white/5 shadow active:scale-95 transition cursor-pointer">
+              <div onclick="openDetailView('deadpool')" class="bg-card rounded-xl overflow-hidden border border-red-500/50 shadow active:scale-95 transition cursor-pointer">
                 <div class="relative aspect-[2/3] w-full">
-                  <img src="https://image.tmdb.org/t/p/w500/ooBGRQBdnvvMeISegQ1vToCvdGw.jpg" onerror="this.src='https://images.unsplash.com/photo-1594909122845-11baa439b7bf?w=300'" class="w-full h-full object-cover">
+                  <img src="https://image.tmdb.org/t/p/w500/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg" class="w-full h-full object-cover">
+                  <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 text-[10px] font-bold text-amber-400">7.1</div>
+                  <div class="absolute bottom-1.5 right-1.5 px-1 rounded bg-black/60 text-[8px] text-white">4K HDR</div>
+                </div>
+                <div class="p-2">
+                  <div class="font-bold text-xs text-red-400 truncate">死侍与金刚狼</div>
+                  <div class="text-[10px] text-gray-400">2024 · 电影</div>
+                </div>
+              </div>
+
+              <div onclick="openPlayerModal('生活大爆炸', '电视剧')" class="bg-card rounded-xl overflow-hidden border border-white/5 shadow active:scale-95 transition cursor-pointer">
+                <div class="relative aspect-[2/3] w-full">
+                  <img src="https://image.tmdb.org/t/p/w500/ooBGRQBdnvvMeISegQ1vToCvdGw.jpg" class="w-full h-full object-cover">
                   <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 text-[10px] font-bold text-amber-400">9.7</div>
                   <div class="absolute bottom-1.5 right-1.5 px-1 rounded bg-black/60 text-[8px] text-white">4K</div>
                 </div>
@@ -639,107 +1288,29 @@
                 </div>
               </div>
 
-              <!-- 卡片 3 -->
-              <div onclick="showToast('小谢尔顿')" class="bg-card rounded-xl overflow-hidden border border-white/5 shadow active:scale-95 transition cursor-pointer">
+              <div onclick="openPlayerModal('葬送的芙莉莲', '动漫')" class="bg-card rounded-xl overflow-hidden border border-white/5 shadow active:scale-95 transition cursor-pointer">
                 <div class="relative aspect-[2/3] w-full">
-                  <img src="https://image.tmdb.org/t/p/w500/MpdmsM9nC9qC2y6Nq4lR6L7Jz4.jpg" onerror="this.src='https://images.unsplash.com/photo-1616530940355-351fabd9524b?w=300'" class="w-full h-full object-cover">
-                  <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 text-[10px] font-bold text-amber-400">9.7</div>
-                  <div class="absolute bottom-1.5 right-1.5 px-1 rounded bg-black/60 text-[8px] text-white">4K</div>
+                  <img src="https://images.unsplash.com/photo-1578632767115-351597cf2477?w=300" class="w-full h-full object-cover">
+                  <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 text-[10px] font-bold text-amber-400">9.5</div>
+                  <div class="absolute bottom-1.5 right-1.5 px-1 rounded bg-black/60 text-[8px] text-white">1080P</div>
                 </div>
                 <div class="p-2">
-                  <div class="font-bold text-xs text-white truncate">小谢尔顿</div>
-                  <div class="text-[10px] text-gray-400">7 季全 · 喜剧</div>
-                </div>
-              </div>
-
-              <!-- 卡片 4 -->
-              <div onclick="showToast('死侍与金刚狼')" class="bg-card rounded-xl overflow-hidden border border-white/5 shadow active:scale-95 transition cursor-pointer">
-                <div class="relative aspect-[2/3] w-full">
-                  <img src="https://image.tmdb.org/t/p/w500/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg" onerror="this.src='https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=300'" class="w-full h-full object-cover">
-                  <div class="absolute top-1.5 left-1.5 px-1.5 py-0.2 rounded bg-black/70 text-[10px] font-bold text-amber-400">7.1</div>
-                  <div class="absolute bottom-1.5 right-1.5 px-1 rounded bg-black/60 text-[8px] text-white">4K</div>
-                </div>
-                <div class="p-2">
-                  <div class="font-bold text-xs text-white truncate">死侍与金刚狼</div>
-                  <div class="text-[10px] text-gray-400">2024 · 动作</div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 移动端视图 2: 详情页 -->
-          <div id="mobile-view-detail" class="hidden space-y-4">
-            <div class="flex items-center justify-between">
-              <button onclick="mobileShowView('home')" class="text-xs text-blue-400 flex items-center space-x-1 py-1">
-                <span>‹ 返回媒体库</span>
-              </button>
-              <span class="text-xs text-gray-400">电视剧详情</span>
-            </div>
-
-            <!-- 顶部宽幅剧照 -->
-            <div class="relative aspect-video rounded-xl overflow-hidden shadow-lg border border-white/10">
-              <img src="https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?w=600" class="w-full h-full object-cover">
-              <div class="absolute inset-0 bg-black/30 flex items-center justify-center">
-                <button onclick="showToast('启动移动端 MediaCodec 硬解播放器')" class="w-12 h-12 rounded-full bg-blue-600/90 text-white flex items-center justify-center shadow-lg active:scale-90 transition">
-                  <svg class="w-6 h-6 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                </button>
-              </div>
-            </div>
-
-            <!-- 标题与播放大按钮 -->
-            <div>
-              <div class="flex items-center justify-between">
-                <h2 class="text-lg font-bold text-white">小城良方</h2>
-                <span class="text-amber-400 font-bold text-sm">9.0 分</span>
-              </div>
-              <p class="text-[11px] text-gray-400 mt-0.5">29集 · 2026年 · 中国大陆 · 剧情</p>
-              <button onclick="showToast('继续播放第 10 集')" class="w-full mt-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center justify-center space-x-2 shadow-lg">
-                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                <span>继续播放 (第 10 集 16:15)</span>
-              </button>
-            </div>
-
-            <!-- 移动端选集列表 -->
-            <div>
-              <div class="flex items-center justify-between mb-2">
-                <span class="text-xs font-bold text-white">选集 (共 29 集)</span>
-                <span class="text-[10px] text-blue-400">正序</span>
-              </div>
-              <div class="space-y-2">
-                <div onclick="showToast('播放第 1 集')" class="p-2.5 rounded-lg bg-white/5 active:bg-blue-600/20 border border-white/5 flex items-center justify-between text-xs">
-                  <div>
-                    <div class="font-medium text-white">第1集 - 亮仔变老铁</div>
-                    <div class="text-[10px] text-gray-400">45分钟 · 1080P EAC3</div>
-                  </div>
-                  <span class="text-blue-400 text-xs">▶</span>
-                </div>
-                <div onclick="showToast('播放第 2 集')" class="p-2.5 rounded-lg bg-white/5 active:bg-blue-600/20 border border-white/5 flex items-center justify-between text-xs">
-                  <div>
-                    <div class="font-medium text-white">第2集 - 心机院长强制定爱</div>
-                    <div class="text-[10px] text-gray-400">42分钟 · 1080P EAC3</div>
-                  </div>
-                  <span class="text-blue-400 text-xs">▶</span>
-                </div>
-                <div onclick="showToast('播放第 3 集')" class="p-2.5 rounded-lg bg-white/5 active:bg-blue-600/20 border border-white/5 flex items-center justify-between text-xs">
-                  <div>
-                    <div class="font-medium text-white">第3集 - 摸鱼败将</div>
-                    <div class="text-[10px] text-gray-400">48分钟 · 1080P EAC3</div>
-                  </div>
-                  <span class="text-blue-400 text-xs">▶</span>
+                  <div class="font-bold text-xs text-white truncate">葬送的芙莉莲</div>
+                  <div class="text-[10px] text-gray-400">新番 · 奇幻</div>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- 移动端底部悬浮 NavigationBar (3 Tab 极简架构) -->
-        <nav class="h-16 bg-[#131418]/90 backdrop-blur border-t border-white/10 px-6 flex items-center justify-between absolute bottom-0 inset-x-0 z-40">
-          <button onclick="mobileShowView('home')" class="flex flex-col items-center space-y-1 text-blue-400">
+        <!-- 移动端底部 3 Tab 导航栏 -->
+        <nav class="h-16 bg-[#121318]/95 backdrop-blur border-t border-white/10 px-6 flex items-center justify-between absolute bottom-0 inset-x-0 z-40">
+          <button onclick="mobileSwitchTab('home')" class="flex flex-col items-center space-y-1 text-blue-400">
             <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/></svg>
             <span class="text-[10px] font-medium">媒体库</span>
           </button>
 
-          <button onclick="showToast('进入分类筛选')" class="flex flex-col items-center space-y-1 text-gray-400 hover:text-white">
+          <button onclick="openCategoryFilter('all')" class="flex flex-col items-center space-y-1 text-gray-400 hover:text-white">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"/></svg>
             <span class="text-[10px] font-medium">分类</span>
           </button>
@@ -749,8 +1320,6 @@
             <span class="text-[10px] font-medium">设置</span>
           </button>
         </nav>
-
-        <!-- 手机底部指示条 -->
         <div class="phone-home-indicator"></div>
       </div>
     </div>
@@ -760,14 +1329,13 @@
     <!--                         3. TV 电视端 (10-Foot 遥控UI) 容器               -->
     <!-- ========================================================================= -->
     <div id="container-tv" class="hidden h-full w-full flex items-center justify-center space-x-6">
-      <!-- 电视屏幕模拟 -->
       <div class="tv-screen-mockup flex flex-col">
         <!-- TV 沉浸顶栏 -->
-        <div class="h-14 px-10 flex items-center justify-between border-b border-white/5 bg-[#0a0b0e] z-30 flex-shrink-0">
+        <div class="h-14 px-10 flex items-center justify-between border-b border-white/5 bg-[#090a0d] z-30 flex-shrink-0">
           <div class="flex items-center space-x-4">
             <span class="text-lg font-black tracking-wider text-blue-500">NIPAPLAY TV</span>
             <span class="text-xs text-gray-500">|</span>
-            <span class="text-xs text-gray-300">客厅大屏沉浸模式 · 支持键盘方向键与遥控器焦点</span>
+            <span class="text-xs text-gray-300">客厅 10-foot 大屏沉浸模式 · 全类型海报与遥控十字焦点</span>
           </div>
           <div class="flex items-center space-x-6 text-sm">
             <div class="flex items-center space-x-2 text-emerald-400 text-xs">
@@ -778,14 +1346,14 @@
           </div>
         </div>
 
-        <!-- TV 主工作区 -->
+        <!-- TV 主体区 -->
         <div class="flex-1 flex overflow-hidden">
-          <!-- TV 焦点侧边栏 (默认紧凑图标) -->
-          <div class="w-20 bg-[#0f1117] flex flex-col items-center py-6 space-y-6 border-r border-white/5 flex-shrink-0">
+          <!-- TV 遥控侧边栏 -->
+          <div class="w-20 bg-[#0e1016] flex flex-col items-center py-6 space-y-6 border-r border-white/5 flex-shrink-0">
             <button class="tv-focusable tv-focused w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-lg" data-tv-id="tv-nav-home" onclick="tvShowView('home')">
               <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z"/></svg>
             </button>
-            <button class="tv-focusable w-12 h-12 rounded-2xl bg-white/5 text-gray-400 flex items-center justify-center" data-tv-id="tv-nav-search" onclick="showToast('遥控器语音/首字母搜索')">
+            <button class="tv-focusable w-12 h-12 rounded-2xl bg-white/5 text-gray-400 flex items-center justify-center" data-tv-id="tv-nav-search" onclick="openSearchModal()">
               <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
             </button>
             <button class="tv-focusable w-12 h-12 rounded-2xl bg-white/5 text-gray-400 flex items-center justify-center" data-tv-id="tv-nav-settings" onclick="openGlobalSettings('sources')">
@@ -795,139 +1363,75 @@
 
           <!-- TV 大屏主内容流 -->
           <div class="flex-1 overflow-y-auto p-8 space-y-8" id="tv-content-container">
-            <!-- TV 视图 1: 首页 -->
+            <!-- TV 视图: 首页 -->
             <div id="tv-view-home" class="space-y-8">
-              <!-- 精选推荐海报横条 -->
+              <!-- 精选热播横条 (按 OK 直接起播) -->
               <div class="relative h-60 rounded-3xl overflow-hidden p-8 flex flex-col justify-end border border-white/10 shadow-2xl">
                 <div class="absolute inset-0 bg-cover bg-center" style="background-image: url('https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?w=1000');"></div>
                 <div class="absolute inset-0 bg-gradient-to-r from-black via-black/70 to-transparent"></div>
                 <div class="relative z-10 space-y-2 max-w-xl">
-                  <div class="inline-block px-2.5 py-0.5 rounded-full bg-blue-600 text-white text-[11px] font-bold">精选热播</div>
+                  <div class="inline-block px-2.5 py-0.5 rounded-full bg-blue-600 text-white text-[11px] font-bold">客厅精选</div>
                   <h2 class="text-3xl font-black text-white">小城良方 (2026)</h2>
-                  <p class="text-xs text-gray-300 line-clamp-2">天才医生跌落低谷返乡创业，温暖人心的市井群像剧。支持 4K HDR EAC3 5.1声道音频直通。</p>
+                  <p class="text-xs text-gray-300 line-clamp-2">天才医生回乡温情重组团队。支持 4K HDR、Dolby Atmos 音频直通与遥控焦点控制。</p>
                   <div class="pt-2 flex items-center space-x-3">
-                    <button class="tv-focusable px-6 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-sm shadow-xl flex items-center space-x-2" data-tv-id="tv-btn-play-hero" onclick="tvShowView('detail')">
+                    <button class="tv-focusable px-6 py-2.5 rounded-xl bg-blue-600 text-white font-bold text-sm shadow-xl flex items-center space-x-2" data-tv-id="tv-btn-play-hero" onclick="openPlayerModal('小城良方 第10集', '电视剧')">
                       <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                      <span>按 OK 进入详情并播放</span>
+                      <span>按 OK 键直接全屏起播</span>
                     </button>
                   </div>
                 </div>
               </div>
 
-              <!-- TV 电视剧行 (卡片大、遥控焦点放大) -->
+              <!-- TV 电视剧行 -->
               <div>
-                <h3 class="text-base font-bold text-white mb-3 flex items-center space-x-2">
-                  <span>电视剧</span>
-                  <span class="text-xs text-gray-400 font-normal">(按方向键游走，选中自动发光放大)</span>
-                </h3>
+                <h3 class="text-base font-bold text-white mb-3">电视剧与热播作品 (支持方向键游走)</h3>
                 <div class="grid grid-cols-4 gap-6">
-                  <!-- TV 卡片 1 -->
-                  <div class="tv-focusable rounded-2xl overflow-hidden bg-card border border-white/10 shadow-xl cursor-pointer" data-tv-id="tv-card-1" onclick="tvShowView('detail')">
+                  <div class="tv-focusable rounded-2xl overflow-hidden bg-card border border-white/10 shadow-xl cursor-pointer" data-tv-id="tv-card-1" onclick="openDetailView('smalltown')">
                     <div class="relative aspect-[16/10] w-full">
                       <img src="https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?w=400" class="w-full h-full object-cover">
                       <div class="absolute top-2 left-2 px-2 py-0.5 rounded-lg bg-black/80 font-bold text-xs text-amber-400">9.0</div>
                       <div class="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-blue-600 text-[10px] text-white font-semibold">1080P EAC3</div>
                     </div>
-                    <div class="p-3 bg-[#161820]">
+                    <div class="p-3 bg-[#151720]">
                       <div class="font-bold text-sm text-white truncate">小城良方</div>
                       <div class="text-xs text-gray-400 mt-0.5">29集全 · 剧情 / 都市</div>
                     </div>
                   </div>
 
-                  <!-- TV 卡片 2 -->
-                  <div class="tv-focusable rounded-2xl overflow-hidden bg-card border border-white/10 shadow-xl cursor-pointer" data-tv-id="tv-card-2" onclick="showToast('电视端已选中：生活大爆炸')">
+                  <div class="tv-focusable rounded-2xl overflow-hidden bg-card border border-white/10 shadow-xl cursor-pointer" data-tv-id="tv-card-2" onclick="openDetailView('deadpool')">
                     <div class="relative aspect-[16/10] w-full">
-                      <img src="https://image.tmdb.org/t/p/w500/ooBGRQBdnvvMeISegQ1vToCvdGw.jpg" onerror="this.src='https://images.unsplash.com/photo-1594909122845-11baa439b7bf?w=400'" class="w-full h-full object-cover">
-                      <div class="absolute top-2 left-2 px-2 py-0.5 rounded-lg bg-black/80 font-bold text-xs text-amber-400">9.7</div>
-                      <div class="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-amber-500 text-[10px] text-black font-bold">4K HDR</div>
+                      <img src="https://image.tmdb.org/t/p/w500/8cdWjvZQUExUUTzyp4t6EDMubfO.jpg" class="w-full h-full object-cover">
+                      <div class="absolute top-2 left-2 px-2 py-0.5 rounded-lg bg-black/80 font-bold text-xs text-amber-400">7.1</div>
+                      <div class="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-red-600 text-[10px] text-white font-bold">4K HDR</div>
                     </div>
-                    <div class="p-3 bg-[#161820]">
-                      <div class="font-bold text-sm text-white truncate">生活大爆炸</div>
-                      <div class="text-xs text-gray-400 mt-0.5">12 季全 · 经典美剧</div>
+                    <div class="p-3 bg-[#151720]">
+                      <div class="font-bold text-sm text-white truncate">死侍与金刚狼</div>
+                      <div class="text-xs text-gray-400 mt-0.5">2024 · 电影</div>
                     </div>
                   </div>
 
-                  <!-- TV 卡片 3 -->
-                  <div class="tv-focusable rounded-2xl overflow-hidden bg-card border border-white/10 shadow-xl cursor-pointer" data-tv-id="tv-card-3" onclick="showToast('电视端已选中：小谢尔顿')">
+                  <div class="tv-focusable rounded-2xl overflow-hidden bg-card border border-white/10 shadow-xl cursor-pointer" data-tv-id="tv-card-3" onclick="openPlayerModal('生活大爆炸', '电视剧')">
                     <div class="relative aspect-[16/10] w-full">
-                      <img src="https://image.tmdb.org/t/p/w500/MpdmsM9nC9qC2y6Nq4lR6L7Jz4.jpg" onerror="this.src='https://images.unsplash.com/photo-1616530940355-351fabd9524b?w=400'" class="w-full h-full object-cover">
+                      <img src="https://image.tmdb.org/t/p/w500/ooBGRQBdnvvMeISegQ1vToCvdGw.jpg" class="w-full h-full object-cover">
                       <div class="absolute top-2 left-2 px-2 py-0.5 rounded-lg bg-black/80 font-bold text-xs text-amber-400">9.7</div>
                       <div class="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-amber-500 text-[10px] text-black font-bold">4K</div>
                     </div>
-                    <div class="p-3 bg-[#161820]">
-                      <div class="font-bold text-sm text-white truncate">小谢尔顿</div>
-                      <div class="text-xs text-gray-400 mt-0.5">7 季全 · 喜剧</div>
+                    <div class="p-3 bg-[#151720]">
+                      <div class="font-bold text-sm text-white truncate">生活大爆炸</div>
+                      <div class="text-xs text-gray-400 mt-0.5">12 季全 · 喜剧</div>
                     </div>
                   </div>
 
-                  <!-- TV 卡片 4 -->
-                  <div class="tv-focusable rounded-2xl overflow-hidden bg-card border border-white/10 shadow-xl cursor-pointer" data-tv-id="tv-card-4" onclick="showToast('电视端已选中：刺客旅馆')">
+                  <div class="tv-focusable rounded-2xl overflow-hidden bg-card border border-white/10 shadow-xl cursor-pointer" data-tv-id="tv-card-4" onclick="openPlayerModal('哈利波特与魔法石', '电影')">
                     <div class="relative aspect-[16/10] w-full">
-                      <img src="https://image.tmdb.org/t/p/w500/A7SpnCg08Xw81h6x48kS2G0u01U.jpg" onerror="this.src='https://images.unsplash.com/photo-1574375927938-d5a98e8ffe85?w=400'" class="w-full h-full object-cover">
-                      <div class="absolute top-2 left-2 px-2 py-0.5 rounded-lg bg-black/80 font-bold text-xs text-amber-400">8.8</div>
-                      <div class="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-blue-600 text-[10px] text-white font-semibold">1080P</div>
+                      <img src="https://images.unsplash.com/photo-1542204165-65bf26472b9b?w=400" class="w-full h-full object-cover">
+                      <div class="absolute top-2 left-2 px-2 py-0.5 rounded-lg bg-black/80 font-bold text-xs text-amber-400">9.2</div>
+                      <div class="absolute bottom-2 right-2 px-1.5 py-0.5 rounded bg-blue-600 text-[10px] text-white font-semibold">4K 原盘</div>
                     </div>
-                    <div class="p-3 bg-[#161820]">
-                      <div class="font-bold text-sm text-white truncate">刺客旅馆</div>
-                      <div class="text-xs text-gray-400 mt-0.5">第 1 季 · 动作</div>
+                    <div class="p-3 bg-[#151720]">
+                      <div class="font-bold text-sm text-white truncate">哈利波特与魔法石</div>
+                      <div class="text-xs text-gray-400 mt-0.5">经典魔幻合集</div>
                     </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- TV 视图 2: 详情页 -->
-            <div id="tv-view-detail" class="hidden space-y-6">
-              <div class="flex items-center justify-between">
-                <button class="tv-focusable px-4 py-2 rounded-xl bg-white/10 text-sm font-semibold flex items-center space-x-2" data-tv-id="tv-btn-back" onclick="tvShowView('home')">
-                  <span>‹ 按返回键退回首页</span>
-                </button>
-                <div class="text-xs text-gray-400">Android TV / tvOS 遥控播放器准备就绪</div>
-              </div>
-
-              <!-- 详情头部 -->
-              <div class="p-6 rounded-3xl bg-[#14161f] border border-white/10 flex space-x-6 items-center">
-                <div class="w-44 aspect-[2/3] rounded-2xl overflow-hidden bg-cover bg-center flex-shrink-0 shadow-2xl" style="background-image: url('https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?w=400');"></div>
-                <div class="space-y-3 flex-1">
-                  <div class="flex items-center space-x-4">
-                    <h1 class="text-3xl font-extrabold text-white">小城良方</h1>
-                    <span class="px-3 py-1 rounded-full bg-amber-400/20 text-amber-400 font-bold text-sm border border-amber-400/30">TMDB 9.0</span>
-                    <span class="text-xs px-2 py-0.5 rounded bg-white/10 text-gray-300">2026 · 共29集</span>
-                  </div>
-                  <p class="text-sm text-gray-300 leading-relaxed max-w-3xl">
-                    刘铮亮遭遇人生低谷回乡重组团队，用最真挚的情感治愈心灵。TV 端已为当前设备开启 MediaCodec 硬件解码与音频直通。
-                  </p>
-                  <div class="pt-2 flex items-center space-x-4">
-                    <button class="tv-focusable px-6 py-3 rounded-2xl bg-blue-600 text-white font-bold text-base shadow-xl flex items-center space-x-2" data-tv-id="tv-btn-play-now" onclick="showToast('电视端正在拉起 4K 全屏硬件解码')">
-                      <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                      <span>续播第 10 集 (16:15)</span>
-                    </button>
-                    <button class="tv-focusable px-5 py-3 rounded-2xl bg-white/10 text-white font-semibold text-sm" data-tv-id="tv-btn-fav" onclick="showToast('已加入 TV 收藏列表')">
-                      <span>★ 收藏</span>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <!-- TV 选集横向焦点条 -->
-              <div>
-                <h3 class="text-sm font-bold text-white mb-3">剧集列表 (方向键横向选集，按 OK 立即播)</h3>
-                <div class="grid grid-cols-4 gap-4">
-                  <div class="tv-focusable p-3 rounded-2xl bg-[#14161f] border border-white/5 cursor-pointer" data-tv-id="tv-ep-1" onclick="showToast('电视播放第 1 集')">
-                    <div class="font-bold text-sm text-white">第 1 集</div>
-                    <div class="text-xs text-gray-400 mt-1 truncate">亮仔变老铁 (45m)</div>
-                  </div>
-                  <div class="tv-focusable p-3 rounded-2xl bg-[#14161f] border border-white/5 cursor-pointer" data-tv-id="tv-ep-2" onclick="showToast('电视播放第 2 集')">
-                    <div class="font-bold text-sm text-white">第 2 集</div>
-                    <div class="text-xs text-gray-400 mt-1 truncate">心机院长强制定爱 (42m)</div>
-                  </div>
-                  <div class="tv-focusable p-3 rounded-2xl bg-[#14161f] border border-white/5 cursor-pointer" data-tv-id="tv-ep-3" onclick="showToast('电视播放第 3 集')">
-                    <div class="font-bold text-sm text-white">第 3 集</div>
-                    <div class="text-xs text-gray-400 mt-1 truncate">摸鱼败将 (48m)</div>
-                  </div>
-                  <div class="tv-focusable p-3 rounded-2xl bg-[#14161f] border border-white/5 cursor-pointer" data-tv-id="tv-ep-4" onclick="showToast('电视播放第 4 集')">
-                    <div class="font-bold text-sm text-white">第 4 集</div>
-                    <div class="text-xs text-gray-400 mt-1 truncate">不速之客俏羊驼 (44m)</div>
                   </div>
                 </div>
               </div>
@@ -936,49 +1440,28 @@
         </div>
       </div>
 
-      <!-- TV 虚拟遥控器 (支持鼠标点击或按键盘方向键) -->
+      <!-- TV 虚拟遥控器 (带方向键、OK、返回、菜单) -->
       <div class="w-64 bg-[#14161f] rounded-3xl p-5 border border-white/10 shadow-2xl flex flex-col items-center select-none flex-shrink-0">
         <div class="text-xs font-bold text-gray-400 tracking-wider mb-4 flex items-center space-x-1.5">
           <svg class="w-4 h-4 text-blue-400" fill="currentColor" viewBox="0 0 20 20"><path d="M7 2a2 2 0 00-2 2v12a2 2 0 002 2h6a2 2 0 002-2V4a2 2 0 00-2-2H7zm3 14a1 1 0 100-2 1 1 0 000 2z"/></svg>
           <span>电视遥控器模拟</span>
         </div>
 
-        <!-- 遥控器十字键 D-Pad -->
         <div class="relative w-44 h-44 rounded-full bg-[#1e2029] border border-white/10 flex items-center justify-center shadow-inner my-2">
-          <!-- 上 -->
-          <button onclick="navigateTvFocus('up')" class="dpad-btn absolute top-2 w-12 h-10 rounded-t-xl bg-white/5 hover:bg-white/15 text-gray-300 flex items-center justify-center transition">
-            ▲
-          </button>
-          <!-- 下 -->
-          <button onclick="navigateTvFocus('down')" class="dpad-btn absolute bottom-2 w-12 h-10 rounded-b-xl bg-white/5 hover:bg-white/15 text-gray-300 flex items-center justify-center transition">
-            ▼
-          </button>
-          <!-- 左 -->
-          <button onclick="navigateTvFocus('left')" class="dpad-btn absolute left-2 w-10 h-12 rounded-l-xl bg-white/5 hover:bg-white/15 text-gray-300 flex items-center justify-center transition">
-            ◀
-          </button>
-          <!-- 右 -->
-          <button onclick="navigateTvFocus('right')" class="dpad-btn absolute right-2 w-10 h-12 rounded-r-xl bg-white/5 hover:bg-white/15 text-gray-300 flex items-center justify-center transition">
-            ▶
-          </button>
-          <!-- OK 确认键 -->
-          <button onclick="clickCurrentTvFocus()" class="dpad-btn w-16 h-16 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-black text-sm flex items-center justify-center shadow-lg transition">
-            OK
-          </button>
+          <button onclick="navigateTvFocus('up')" class="dpad-btn absolute top-2 w-12 h-10 rounded-t-xl bg-white/5 hover:bg-white/15 text-gray-300 flex items-center justify-center transition">▲</button>
+          <button onclick="navigateTvFocus('down')" class="dpad-btn absolute bottom-2 w-12 h-10 rounded-b-xl bg-white/5 hover:bg-white/15 text-gray-300 flex items-center justify-center transition">▼</button>
+          <button onclick="navigateTvFocus('left')" class="dpad-btn absolute left-2 w-10 h-12 rounded-l-xl bg-white/5 hover:bg-white/15 text-gray-300 flex items-center justify-center transition">◀</button>
+          <button onclick="navigateTvFocus('right')" class="dpad-btn absolute right-2 w-10 h-12 rounded-r-xl bg-white/5 hover:bg-white/15 text-gray-300 flex items-center justify-center transition">▶</button>
+          <button onclick="clickCurrentTvFocus()" class="dpad-btn w-16 h-16 rounded-full bg-blue-600 hover:bg-blue-500 text-white font-black text-sm flex items-center justify-center shadow-lg transition">OK</button>
         </div>
 
-        <!-- 遥控辅助按键 -->
         <div class="grid grid-cols-2 gap-3 w-full mt-4">
-          <button onclick="navigateTvBack()" class="dpad-btn py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-semibold text-gray-300 flex items-center justify-center space-x-1">
-            <span>⮌ 返回</span>
-          </button>
-          <button onclick="openGlobalSettings('sources')" class="dpad-btn py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-semibold text-gray-300 flex items-center justify-center space-x-1">
-            <span>☰ 菜单</span>
-          </button>
+          <button onclick="navigateTvBack()" class="dpad-btn py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-semibold text-gray-300 flex items-center justify-center space-x-1"><span>⮌ 返回</span></button>
+          <button onclick="openGlobalSettings('sources')" class="dpad-btn py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-xs font-semibold text-gray-300 flex items-center justify-center space-x-1"><span>☰ 菜单</span></button>
         </div>
 
         <div class="mt-4 p-2.5 rounded-xl bg-black/40 text-[10px] text-gray-400 text-center leading-relaxed border border-white/5">
-          💡 提示：在 TV 模式下，直接按键盘的 <kbd class="text-white bg-white/20 px-1 rounded">↑</kbd> <kbd class="text-white bg-white/20 px-1 rounded">↓</kbd> <kbd class="text-white bg-white/20 px-1 rounded">←</kbd> <kbd class="text-white bg-white/20 px-1 rounded">→</kbd> 与 <kbd class="text-white bg-white/20 px-1 rounded">Enter</kbd> 也能畅快遥控！
+          💡 键盘支持：按方向键 <kbd class="text-white bg-white/20 px-1 rounded">↑</kbd> <kbd class="text-white bg-white/20 px-1 rounded">↓</kbd> <kbd class="text-white bg-white/20 px-1 rounded">←</kbd> <kbd class="text-white bg-white/20 px-1 rounded">→</kbd> 与 <kbd class="text-white bg-white/20 px-1 rounded">Enter</kbd>、<kbd class="text-white bg-white/20 px-1 rounded">Esc</kbd> 沉浸遥控！
         </div>
       </div>
     </div>
@@ -987,11 +1470,163 @@
 
 
   <!-- ========================================================================= -->
-  <!--               4. 全平台统一设置中心 (覆盖所有保留项与播放保障)             -->
+  <!--               4. 沉浸式真机视频播放器界面 (Full Video Player HUD)           -->
+  <!-- ========================================================================= -->
+  <div id="player-modal" class="hidden fixed inset-0 z-50 bg-black flex flex-col overflow-hidden select-none">
+    <!-- 模拟视频背景与实时飞过弹幕 -->
+    <div class="absolute inset-0 bg-cover bg-center z-0" id="player-bg-image" style="background-image: url('https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?w=1600');">
+      <div class="absolute inset-0 bg-black/35 backdrop-blur-[1px]"></div>
+      <!-- 动态弹幕轨道 -->
+      <div class="absolute inset-0 overflow-hidden pointer-events-none text-sm z-10" id="danmaku-container">
+        <div class="danmaku-item text-white top-8" style="animation-delay: 0s;">这一段演技直接封神了！！！</div>
+        <div class="danmaku-item text-amber-300 top-16" style="animation-delay: 2s;">画质太通透了，4K HEVC 确实毫无涂抹感！</div>
+        <div class="danmaku-item text-blue-400 top-24" style="animation-delay: 4.5s;">夸克网盘本地 28282 代理拖拽真的秒开，不卡顿！</div>
+        <div class="danmaku-item text-green-300 top-32" style="animation-delay: 6.8s;">良心重构，没有杂七杂八的功能，只想安安静静看片</div>
+        <div class="danmaku-item text-purple-300 top-12" style="animation-delay: 8.5s;">前方高能预警！请准备好纸巾！</div>
+      </div>
+    </div>
+
+    <!-- 播放器顶部控制栏 (Top Bar) -->
+    <div class="h-16 px-6 bg-gradient-to-b from-black/80 to-transparent flex items-center justify-between z-20 flex-shrink-0">
+      <div class="flex items-center space-x-4">
+        <button onclick="closePlayerModal()" class="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
+        </button>
+        <div>
+          <h2 id="player-title" class="font-bold text-base text-white">小城良方 - 第10集</h2>
+          <div class="flex items-center space-x-2 text-[11px] text-gray-300">
+            <span class="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">硬件解码：D3D11VA (GPU 18%)</span>
+            <span>•</span>
+            <span class="text-blue-400">本地流代理：14.8 MB/s (缓冲 98%)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex items-center space-x-3 text-xs">
+        <button onclick="toggleDanmaku()" id="btn-danmaku-toggle" class="px-3 py-1.5 rounded-full bg-blue-600 text-white font-medium">弹幕：开</button>
+        <button onclick="showToast('已锁定屏幕触控')" class="p-2 rounded-full bg-white/10 hover:bg-white/20 text-white"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></button>
+      </div>
+    </div>
+
+    <!-- 播放器中心手势触控与播放暂停状态 -->
+    <div class="flex-1 flex items-center justify-center relative z-10" onclick="togglePlayState()">
+      <div id="player-center-icon" class="w-20 h-20 rounded-full bg-black/60 backdrop-blur text-white flex items-center justify-center opacity-0 transition-opacity">
+        <svg class="w-10 h-10 ml-1" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+      </div>
+    </div>
+
+    <!-- 播放器底部 HUD 控制面板 (Bottom Bar) -->
+    <div class="h-24 px-6 bg-gradient-to-t from-black/90 via-black/60 to-transparent flex flex-col justify-end pb-4 z-20 space-y-2 flex-shrink-0">
+      <!-- 进度条与时间 -->
+      <div class="flex items-center space-x-3">
+        <span id="player-current-time" class="text-xs font-mono text-gray-300 w-12 text-right">16:15</span>
+        <div class="flex-1 h-1.5 rounded-full bg-white/20 relative cursor-pointer group" onclick="seekPlayer(event)">
+          <!-- 预加载缓冲条 -->
+          <div class="absolute inset-y-0 left-0 bg-white/40 rounded-full" style="width: 75%;"></div>
+          <!-- 播放进度条 -->
+          <div id="player-progress-bar" class="absolute inset-y-0 left-0 bg-blue-500 rounded-full" style="width: 36%;"></div>
+          <!-- 拖动小圆点 -->
+          <div class="absolute top-1/2 -mt-2 w-4 h-4 rounded-full bg-white shadow-lg opacity-0 group-hover:opacity-100 transition-opacity" style="left: calc(36% - 8px);"></div>
+        </div>
+        <span class="text-xs font-mono text-gray-400 w-12">45:00</span>
+      </div>
+
+      <!-- 控制按键行 -->
+      <div class="flex items-center justify-between text-xs pt-1">
+        <div class="flex items-center space-x-4">
+          <!-- 播放/暂停 -->
+          <button onclick="togglePlayState()" id="btn-play-pause" class="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+          </button>
+          <!-- 快退 10s -->
+          <button onclick="showToast('快退 10 秒')" class="text-gray-300 hover:text-white flex items-center space-x-1">
+            <span>⟲ 10s</span>
+          </button>
+          <!-- 快进 10s -->
+          <button onclick="showToast('快进 10 秒')" class="text-gray-300 hover:text-white flex items-center space-x-1">
+            <span>⟳ 10s</span>
+          </button>
+          <!-- 音量控制 -->
+          <div class="flex items-center space-x-2 text-gray-300 pl-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"/></svg>
+            <input type="range" value="80" class="w-20 h-1 accent-blue-500">
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-4 text-xs font-medium">
+          <!-- 倍速切换 -->
+          <div class="relative group">
+            <button class="px-2.5 py-1 rounded bg-white/10 hover:bg-white/20 text-white">倍速: 1.0x ⌄</button>
+          </div>
+          <!-- 选集抽屉按钮 -->
+          <button onclick="toggleEpisodeDrawer()" class="px-2.5 py-1 rounded bg-white/10 hover:bg-white/20 text-white flex items-center space-x-1">
+            <span>选集</span>
+          </button>
+          <!-- 音轨与字幕 -->
+          <button onclick="openGlobalSettings('danmaku')" class="px-2.5 py-1 rounded bg-white/10 hover:bg-white/20 text-white">字幕/音轨</button>
+          <!-- 全屏 -->
+          <button onclick="toggleFullScreen()" class="p-1.5 rounded hover:bg-white/20 text-white">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-5h-4m4 0v4m0-4l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 右侧滑出的“分集选集抽屉” (Episode Drawer) -->
+    <div id="episode-drawer" class="hidden absolute top-0 right-0 bottom-0 w-80 bg-[#121318]/95 backdrop-blur-xl border-l border-white/10 p-5 z-30 flex flex-col">
+      <div class="flex items-center justify-between pb-3 border-b border-white/10">
+        <h3 class="font-bold text-sm text-white">选集列表 (共 29 集)</h3>
+        <button onclick="toggleEpisodeDrawer()" class="text-gray-400 hover:text-white">✕</button>
+      </div>
+      <div class="flex-1 overflow-y-auto py-3 space-y-2 text-xs">
+        <div onclick="switchEpisode(1)" class="p-2.5 rounded-lg bg-white/5 hover:bg-blue-600/20 cursor-pointer flex justify-between items-center">
+          <div><div class="font-medium text-white">第1集 - 亮仔变老铁</div><div class="text-[10px] text-gray-500">45分钟</div></div>
+        </div>
+        <div onclick="switchEpisode(2)" class="p-2.5 rounded-lg bg-white/5 hover:bg-blue-600/20 cursor-pointer flex justify-between items-center">
+          <div><div class="font-medium text-white">第2集 - 心机院长强制定爱</div><div class="text-[10px] text-gray-500">42分钟</div></div>
+        </div>
+        <div onclick="switchEpisode(10)" class="p-2.5 rounded-lg bg-blue-600/20 border border-blue-500/40 text-blue-400 cursor-pointer flex justify-between items-center">
+          <div><div class="font-bold">第10集 [当前播放中]</div><div class="text-[10px] text-blue-400/80">已播 16:15</div></div>
+          <span>▶</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ========================================================================= -->
+  <!--               5. 全局搜索模态框 (Search Modal)                             -->
+  <!-- ========================================================================= -->
+  <div id="search-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-start justify-center pt-20 p-4">
+    <div class="w-full max-w-2xl bg-[#14151a] rounded-2xl border border-white/10 shadow-2xl p-6 space-y-5">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-3 flex-1 bg-white/5 px-4 py-3 rounded-xl border border-white/10">
+          <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+          <input type="text" placeholder="输入影视名称、拼音首字母、导演或演员..." value="小城" class="bg-transparent text-white text-sm outline-none w-full">
+        </div>
+        <button onclick="closeSearchModal()" class="ml-4 text-xs text-gray-400 hover:text-white">取消 (Esc)</button>
+      </div>
+
+      <!-- 搜索匹配结果 -->
+      <div class="space-y-3">
+        <div class="text-xs font-semibold text-gray-400">最佳匹配结果：</div>
+        <div onclick="closeSearchModal(); openDetailView('smalltown');" class="bg-white/5 hover:bg-blue-600/20 p-3 rounded-xl border border-white/5 cursor-pointer flex items-center space-x-3 transition">
+          <img src="https://images.unsplash.com/photo-1578328819058-b69f3a3b0f6b?w=100" class="w-12 h-16 rounded object-cover">
+          <div>
+            <div class="font-bold text-sm text-white">小城良方 (2026)</div>
+            <div class="text-xs text-gray-400">电视剧 · 29集全 · 评分 9.0 · 剧情/都市</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ========================================================================= -->
+  <!--               6. 全平台统一设置中心 (覆盖所有保留项与播放保障)             -->
   <!-- ========================================================================= -->
   <div id="settings-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
     <div class="w-full max-w-4xl h-[620px] bg-[#14151a] rounded-2xl border border-white/10 shadow-2xl flex flex-col overflow-hidden">
-      <!-- 模态框顶部 -->
       <div class="h-14 px-6 border-b border-white/10 flex items-center justify-between flex-shrink-0 bg-[#171821]">
         <div class="flex items-center space-x-2">
           <span class="w-3 h-3 rounded-full bg-blue-500"></span>
@@ -1001,7 +1636,7 @@
       </div>
 
       <div class="flex-1 flex overflow-hidden">
-        <!-- 设置左侧 Tab 导航 (5 大核心保留模块) -->
+        <!-- 5 大核心保留模块 -->
         <div class="w-56 bg-[#111216] border-r border-white/5 p-3 space-y-1 text-xs">
           <button id="stab-sources" onclick="switchSettingTab('sources')" class="w-full flex items-center space-x-2.5 px-3 py-2.5 rounded-xl font-medium bg-blue-600/20 text-blue-400 border border-blue-500/30">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 00-9.78 2.096A4.001 4.001 0 003 15z"/></svg>
@@ -1025,16 +1660,14 @@
           </button>
         </div>
 
-        <!-- 设置右侧面板内容区 -->
+        <!-- 设置面板区 -->
         <div class="flex-1 overflow-y-auto p-6 space-y-6 text-xs">
-          <!-- 1. 媒体源管理 (夸克保留) -->
+          <!-- 媒体源 -->
           <div id="spanel-sources" class="space-y-5">
             <div>
               <h4 class="font-bold text-sm text-white">云端与本地媒体源</h4>
               <p class="text-[11px] text-gray-400 mt-0.5">支持添加夸克网盘、本地文件夹或 WebDAV 作为单一统一媒体库的底层资源。</p>
             </div>
-
-            <!-- 夸克网盘卡片 -->
             <div class="p-4 rounded-xl bg-white/5 border border-white/10 space-y-3">
               <div class="flex items-center justify-between">
                 <div class="flex items-center space-x-3">
@@ -1052,8 +1685,6 @@
                   <button onclick="showToast('重新生成夸克登录二维码')" class="px-2.5 py-1.5 rounded-lg bg-white/10 text-gray-300 hover:text-white">切换账号</button>
                 </div>
               </div>
-
-              <!-- 挂载目录管理 -->
               <div class="bg-black/30 rounded-lg p-2.5 space-y-1.5 border border-white/5">
                 <div class="text-[10px] text-gray-400 font-semibold">已绑定的网盘目录 (扫描入库目标)：</div>
                 <div class="flex items-center justify-between bg-white/5 px-2.5 py-1.5 rounded text-[11px]">
@@ -1065,70 +1696,41 @@
                   <span class="text-blue-400 text-[10px]">1562 部作品</span>
                 </div>
               </div>
-
-              <!-- 防风控轻量化开关 -->
-              <div class="flex items-center justify-between pt-1">
-                <div>
-                  <div class="text-white font-medium">作品级轻量刮削 (零下载、防风控)</div>
-                  <div class="text-[10px] text-gray-400">仅遍历目录树匹配 TMDB，绝对不提前下载视频字节或产生爆发性直链请求</div>
-                </div>
-                <input type="checkbox" checked class="w-4 h-4 text-blue-600 rounded bg-gray-700 border-gray-600">
-              </div>
             </div>
-
-            <!-- 添加本地或其它源 -->
             <div class="p-3.5 rounded-xl border border-dashed border-white/20 hover:border-blue-500/50 flex items-center justify-center space-x-2 cursor-pointer transition" onclick="showToast('选择本地文件夹或输入 WebDAV 地址')">
               <span class="text-blue-400 font-bold">+</span>
               <span class="text-gray-300">添加本地文件夹或 WebDAV / SMB 远程媒体源</span>
             </div>
           </div>
 
-          <!-- 2. 独立刮削配置 (TMDB) -->
+          <!-- 刮削配置 -->
           <div id="spanel-scraper" class="hidden space-y-5">
             <div>
               <h4 class="font-bold text-sm text-white">独立刮削服务配置 (TMDB 元数据)</h4>
               <p class="text-[11px] text-gray-400 mt-0.5">配置海报、演职员表、剧集简介与高保真背景图的元数据抓取引擎。</p>
             </div>
-
             <div class="space-y-3.5">
               <div>
                 <label class="block text-gray-300 font-medium mb-1">TMDB API Key 或 Bearer Token (自动智能识别)</label>
                 <input type="password" value="eyJhbGciOiJIUzI1NiJ9.eyJuYmYiOjE3..." class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white font-mono text-xs focus:border-blue-500 outline-none">
-                <p class="text-[10px] text-gray-500 mt-1">支持 32 位 Hex API Key 或 v4 Bearer Token，系统已内置合法 Token 解析保障。</p>
               </div>
-
               <div>
                 <label class="block text-gray-300 font-medium mb-1">TMDB API 镜像 Host (解决国内网络直连受阻)</label>
                 <input type="text" value="api.tmdb.org" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white font-mono text-xs focus:border-blue-500 outline-none">
               </div>
-
               <div>
                 <label class="block text-gray-300 font-medium mb-1">TMDB 海报/剧照图片加速 CDN Host</label>
                 <input type="text" value="image.tmdb.org" class="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white font-mono text-xs focus:border-blue-500 outline-none">
               </div>
-
-              <div class="flex items-center justify-between pt-2 border-t border-white/5">
-                <div>
-                  <div class="text-white font-medium">刮削平滑步频限制 (防 HTTP 429 请求超限)</div>
-                  <div class="text-[10px] text-gray-400">向 TMDB 抓取时每秒最多调用次数限制 (推荐 4 次/秒)</div>
-                </div>
-                <select class="bg-white/10 border border-white/10 text-white rounded-lg px-2.5 py-1 text-xs">
-                  <option>4 次 / 秒 (推荐稳妥)</option>
-                  <option>8 次 / 秒 (极速)</option>
-                  <option>2 次 / 秒 (保守防封)</option>
-                </select>
-              </div>
             </div>
           </div>
 
-          <!-- 3. 多端播放内核与硬解码 -->
+          <!-- 播放内核 -->
           <div id="spanel-playback" class="hidden space-y-5">
             <div>
               <h4 class="font-bold text-sm text-white">跨平台播放引擎与本地流代理 (保障播放不出现故障)</h4>
               <p class="text-[11px] text-gray-400 mt-0.5">跨平台无缝解码与夸克网盘防断流本地 Proxy 配置。</p>
             </div>
-
-            <!-- 本地流媒体代理服务配置 (核心防崩组件) -->
             <div class="p-3.5 rounded-xl bg-blue-600/10 border border-blue-500/30 space-y-2">
               <div class="flex items-center justify-between">
                 <span class="font-bold text-blue-400 text-xs">统一本地 HTTP Range 206 串流代理服务</span>
@@ -1138,131 +1740,22 @@
                 无论是 PC 桌面、Android 手机还是电视端，播放器均通过本地回环地址读取网络流。代理服务自动处理防盗链 Cookie、分段并发缓存与 Token 自动续期，彻底解决网盘 403 与长视频中断问题。
               </p>
             </div>
-
-            <div class="space-y-3.5">
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="text-white font-medium">PC 桌面端硬件加速方案</div>
-                  <div class="text-[10px] text-gray-400">通过 libmpv 启用 GPU 硬件解码</div>
-                </div>
-                <select class="bg-white/10 border border-white/10 text-white rounded-lg px-2.5 py-1 text-xs">
-                  <option>D3D11VA (Windows 推荐)</option>
-                  <option>NVDEC (Nvidia 独占)</option>
-                  <option>Auto (自动安全回退)</option>
-                </select>
-              </div>
-
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="text-white font-medium">移动端 & Android TV 硬件加速方案</div>
-                  <div class="text-[10px] text-gray-400">移动端与电视端原生低功耗硬解</div>
-                </div>
-                <select class="bg-white/10 border border-white/10 text-white rounded-lg px-2.5 py-1 text-xs">
-                  <option>MediaCodec (Hardware Surface 推荐)</option>
-                  <option>MediaCodec (Software 回退)</option>
-                </select>
-              </div>
-
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="text-white font-medium">TV 大屏音频源码直通 (HDMI Passthrough)</div>
-                  <div class="text-[10px] text-gray-400">将 Dolby Atmos / EAC3 / DTS 原始音频交给电视功放解码</div>
-                </div>
-                <input type="checkbox" checked class="w-4 h-4 text-blue-600 rounded bg-gray-700 border-gray-600">
-              </div>
-
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="text-white font-medium">断点记忆与无缝继续播放</div>
-                  <div class="text-[10px] text-gray-400">跨设备同步上次播放时间轴 (当前演示至 16分15秒)</div>
-                </div>
-                <input type="checkbox" checked class="w-4 h-4 text-blue-600 rounded bg-gray-700 border-gray-600">
-              </div>
-            </div>
           </div>
 
-          <!-- 4. 弹幕与外挂字幕 -->
+          <!-- 弹幕字幕 -->
           <div id="spanel-danmaku" class="hidden space-y-5">
             <div>
               <h4 class="font-bold text-sm text-white">弹幕与外挂字幕</h4>
               <p class="text-[11px] text-gray-400 mt-0.5">提供沉浸式观影体验，弹幕字体大小随设备类型自适应。</p>
             </div>
-
-            <div class="space-y-3.5">
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="text-white font-medium">启用网络弹幕库</div>
-                  <div class="text-[10px] text-gray-400">通过影视名称与集数自动匹配弹幕源</div>
-                </div>
-                <input type="checkbox" checked class="w-4 h-4 text-blue-600 rounded bg-gray-700 border-gray-600">
-              </div>
-
-              <div>
-                <div class="flex justify-between text-gray-300 font-medium mb-1">
-                  <span>弹幕不透明度</span>
-                  <span>75%</span>
-                </div>
-                <input type="range" value="75" min="20" max="100" class="w-full accent-blue-600">
-              </div>
-
-              <div class="flex items-center justify-between">
-                <div>
-                  <div class="text-white font-medium">TV 大屏弹幕防重叠与自动大字号</div>
-                  <div class="text-[10px] text-gray-400">检测到 TV 电视端时自动加大弹幕字号至 24pt，并仅占用上方 1/3 屏幕</div>
-                </div>
-                <input type="checkbox" checked class="w-4 h-4 text-blue-600 rounded bg-gray-700 border-gray-600">
-              </div>
-
-              <div>
-                <label class="block text-gray-300 font-medium mb-1">外挂字幕自动加载策略</label>
-                <select class="w-full bg-white/5 border border-white/10 text-white rounded-lg px-3 py-2 text-xs">
-                  <option>优先同名本地字幕 (.srt / .ass / .vtt)</option>
-                  <option>自动在线搜索中文字幕</option>
-                  <option>仅加载视频内嵌字幕轨</option>
-                </select>
-              </div>
-            </div>
           </div>
 
-          <!-- 5. 多端交互与控制 -->
+          <!-- 多端控制 -->
           <div id="spanel-controls" class="hidden space-y-5">
             <div>
               <h4 class="font-bold text-sm text-white">平台交互与控制习惯</h4>
               <p class="text-[11px] text-gray-400 mt-0.5">针对 PC 鼠标键盘、手机触屏手势、TV 遥控器十字键进行专属优化。</p>
             </div>
-
-            <!-- PC 快捷键说明 -->
-            <div class="bg-black/30 p-3 rounded-xl border border-white/5 space-y-1.5">
-              <div class="font-bold text-xs text-white">💻 PC 桌面端快捷键映射</div>
-              <div class="grid grid-cols-2 gap-2 text-[11px] text-gray-400">
-                <div><kbd class="text-white bg-white/10 px-1 rounded">Space</kbd> 播放 / 暂停</div>
-                <div><kbd class="text-white bg-white/10 px-1 rounded">F</kbd> 全屏 / 退出全屏</div>
-                <div><kbd class="text-white bg-white/10 px-1 rounded">← / →</kbd> 快退 / 快进 5秒</div>
-                <div><kbd class="text-white bg-white/10 px-1 rounded">↑ / ↓</kbd> 音量调节 ±5%</div>
-              </div>
-            </div>
-
-            <!-- 移动端手势 -->
-            <div class="bg-black/30 p-3 rounded-xl border border-white/5 space-y-1.5">
-              <div class="font-bold text-xs text-white">📱 移动端屏幕手势支持</div>
-              <div class="text-[11px] text-gray-400 space-y-1">
-                <div>• 左侧半屏垂直滑动：调节屏幕亮度</div>
-                <div>• 右侧半屏垂直滑动：调节播放音量</div>
-                <div>• 全屏水平左右滑动：带小缩略图的时间轴快进/快退</div>
-                <div>• 双击屏幕中央：播放 / 暂停</div>
-              </div>
-            </div>
-
-            <!-- TV 遥控器映射 -->
-            <div class="bg-black/30 p-3 rounded-xl border border-white/5 space-y-1.5">
-              <div class="font-bold text-xs text-white">📺 TV 遥控器按键映射</div>
-              <div class="text-[11px] text-gray-400 space-y-1">
-                <div>• <kbd class="text-white bg-white/10 px-1 rounded">OK / 确定</kbd> 暂停/起播、确认选中焦点</div>
-                <div>• <kbd class="text-white bg-white/10 px-1 rounded">方向键</kbd> 焦点漫游、横向选集；播放时步进快进</div>
-                <div>• <kbd class="text-white bg-white/10 px-1 rounded">菜单键 Menu</kbd> 呼出清晰度、音轨、字幕抽屉面板</div>
-                <div>• <kbd class="text-white bg-white/10 px-1 rounded">返回键 Back</kbd> 退出全屏播放或返回上一级</div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
@@ -1270,76 +1763,7 @@
   </div>
 
 
-  <!-- ========================================================================= -->
-  <!--               5. 多端播放稳定性保障方案看板 (技术弹窗)                   -->
-  <!-- ========================================================================= -->
-  <div id="tech-modal" class="hidden fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
-    <div class="w-full max-w-3xl max-h-[85vh] bg-[#14151a] rounded-2xl border border-white/10 shadow-2xl flex flex-col overflow-hidden">
-      <div class="h-14 px-6 border-b border-white/10 flex items-center justify-between flex-shrink-0 bg-[#171821]">
-        <div class="flex items-center space-x-2">
-          <span class="w-3 h-3 rounded-full bg-emerald-500"></span>
-          <h3 class="font-bold text-base text-white">多端播放稳定性保障方案 (绝不因重构出现播放问题)</h3>
-        </div>
-        <button onclick="closeArchitectureGuide()" class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white flex items-center justify-center">✕</button>
-      </div>
-
-      <div class="flex-1 overflow-y-auto p-6 space-y-5 text-xs text-gray-300 leading-relaxed">
-        <div class="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-300">
-          <strong>核心原则</strong>：重构只改变上层“极简媒体库与设置”的 UI 呈现方式，底层的<strong>统一流媒体代理 (Local Streaming Proxy)</strong> 与<strong>跨平台播放器驱动层</strong>不仅完全保留，且被抽象为标准化桥接，确保 Windows、Android 手机、Android TV 等所有设备均零故障运行。
-        </div>
-
-        <div class="space-y-4">
-          <div class="p-3.5 rounded-xl bg-white/5 border border-white/10">
-            <h4 class="font-bold text-white text-sm mb-2 flex items-center space-x-2">
-              <span class="w-2 h-2 rounded-full bg-blue-500"></span>
-              <span>1. 夸克网盘防断流与防封禁：统一本地 Range 206 代理</span>
-            </h4>
-            <p>
-              夸克直链存在 15~60 分钟过期机制，且有高并发封控与 UA 校验。我们在各平台底层常驻轻量 HTTP 代理服务（`127.0.0.1:28282`）。无论 PC 端、手机端还是 TV 端，向播放器喂入的都是规范的本地 HTTP 链接。代理在后台负责：
-            </p>
-            <ul class="list-disc list-inside mt-1.5 space-y-1 text-gray-400">
-              <li>分段 Range 请求转发（毫秒级 Seek 不卡死）；</li>
-              <li>静默无感 Token 刷新（即使看 3 小时电影也不会断播）；</li>
-              <li>严格限速与平滑缓冲，杜绝触发网盘频控。</li>
-            </ul>
-          </div>
-
-          <div class="p-3.5 rounded-xl bg-white/5 border border-white/10">
-            <h4 class="font-bold text-white text-sm mb-2 flex items-center space-x-2">
-              <span class="w-2 h-2 rounded-full bg-indigo-500"></span>
-              <span>2. 跨平台播放内核解耦 (PlayerEngineBridge)</span>
-            </h4>
-            <p>
-              避免平台强绑定：
-            </p>
-            <ul class="list-disc list-inside mt-1.5 space-y-1 text-gray-400">
-              <li><strong>PC 桌面 (Windows/Linux)</strong>：使用 media_kit + libmpv，开启 D3D11VA 硬解，支持 4K 120Hz；</li>
-              <li><strong>Android 移动端 & Android TV</strong>：自动选用 MediaCodec 硬件 Surface 解码，兼顾低发热与极低功耗；</li>
-              <li><strong>tvOS / iOS</strong>：使用 VideoToolbox 硬件管线。</li>
-            </ul>
-          </div>
-
-          <div class="p-3.5 rounded-xl bg-white/5 border border-white/10">
-            <h4 class="font-bold text-white text-sm mb-2 flex items-center space-x-2">
-              <span class="w-2 h-2 rounded-full bg-amber-500"></span>
-              <span>3. 电视端遥控器十字焦点 (Focus Navigation) 机制</span>
-            </h4>
-            <p>
-              在 Flutter 层面采用 `FocusScope` + `FocusNode` 统一焦点树管理：
-            </p>
-            <ul class="list-disc list-inside mt-1.5 space-y-1 text-gray-400">
-              <li>电视端默认将首个焦点自动锁定在“继续播放”胶囊按钮上；</li>
-              <li>所有海报卡片与剧集卡片具备独立 Focus 监听，获得焦点时触发高对比度边框发光与放大 1.08 倍动画；</li>
-              <li>按遥控器 OK 键直接起播，按返回键安全退回，绝不产生界面丢失或死循环。</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-
-
-  <!-- 全局轻量 Toast 提示条 -->
+  <!-- 全局轻量 Toast 提示 -->
   <div id="toast" class="hidden fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-blue-600 text-white text-xs font-semibold shadow-2xl transition-all">
     提示信息
   </div>
@@ -1348,7 +1772,7 @@
   <!--                             交互控制 JavaScript                            -->
   <!-- ========================================================================= -->
   <script>
-    // 1. 平台切换逻辑 (PC / Mobile / TV)
+    // 1. 平台切换逻辑
     function switchPlatformMode(mode) {
       const pcContainer = document.getElementById('container-pc');
       const mobileContainer = document.getElementById('container-mobile');
@@ -1358,7 +1782,6 @@
       const btnMobile = document.getElementById('btn-mode-mobile');
       const btnTv = document.getElementById('btn-mode-tv');
 
-      // 重置所有激活状态
       [btnPc, btnMobile, btnTv].forEach(btn => {
         btn.className = "flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-medium transition text-gray-400 hover:text-white hover:bg-white/5";
       });
@@ -1370,7 +1793,7 @@
       if (mode === 'pc') {
         pcContainer.classList.remove('hidden');
         btnPc.className = "flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-medium transition bg-blue-600 text-white shadow";
-        showToast('已切换至 PC 桌面端 (宽屏鼠标交互)');
+        showToast('已切换至 PC 桌面端 (宽屏多列飞牛体验)');
       } else if (mode === 'mobile') {
         mobileContainer.classList.remove('hidden');
         btnMobile.className = "flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-medium transition bg-blue-600 text-white shadow";
@@ -1378,47 +1801,140 @@
       } else if (mode === 'tv') {
         tvContainer.classList.remove('hidden');
         btnTv.className = "flex items-center space-x-2 px-3 py-1.5 rounded-lg text-xs font-medium transition bg-blue-600 text-white shadow";
-        showToast('已切换至 TV 电视大屏 (遥控器焦点交互)');
+        showToast('已切换至 TV 电视大屏 (遥控焦点驱动)');
         updateTvFocusVisuals();
       }
     }
 
-    // 2. PC 页面切换
+    // 2. PC 页面路由
     function pcShowView(view) {
-      const home = document.getElementById('pc-view-home');
-      const detail = document.getElementById('pc-view-detail');
+      const views = ['home', 'category', 'detail-tv', 'detail-movie', 'detail-collection', 'favorites'];
+      views.forEach(v => {
+        const el = document.getElementById(`pc-view-${v}`);
+        if (el) el.classList.add('hidden');
+      });
+
       const title = document.getElementById('pc-topbar-title');
+      const target = document.getElementById(`pc-view-${view}`);
+      if (target) target.classList.remove('hidden');
 
-      if (view === 'home') {
-        home.classList.remove('hidden');
-        detail.classList.add('hidden');
-        title.innerText = '首页';
-      } else if (view === 'detail') {
-        home.classList.add('hidden');
-        detail.classList.remove('hidden');
-        title.innerText = '剧集详情 · 小城良方';
+      if (view === 'home') title.innerText = '首页';
+      else if (view === 'category') title.innerText = '媒体库全部分类筛选';
+      else if (view === 'detail-tv') title.innerText = '电视剧详情 · 小城良方';
+      else if (view === 'detail-movie') title.innerText = '电影详情 · 死侍与金刚狼';
+      else if (view === 'detail-collection') title.innerText = '系列合集 · 哈利·波特全集';
+      else if (view === 'favorites') title.innerText = '我的收藏';
+
+      document.getElementById('pc-content-container').scrollTop = 0;
+    }
+
+    // 3. 打开多维筛选页
+    function openCategoryFilter(type) {
+      pcShowView('category');
+      const catTitle = document.getElementById('cat-view-title');
+      if (type === 'tv') catTitle.innerText = '电视剧媒体库 (641 部)';
+      else if (type === 'movie') catTitle.innerText = '电影媒体库 (1562 部)';
+      else if (type === 'anime') catTitle.innerText = '动漫与新番库 (888 部)';
+      else if (type === 'class') catTitle.innerText = '网课与纪录片库 (510 部)';
+      else catTitle.innerText = '全部媒体库作品 (3601 部)';
+    }
+
+    // 4. 打开影视详情页
+    function openDetailView(mediaKey) {
+      if (mediaKey === 'smalltown') {
+        pcShowView('detail-tv');
+      } else if (mediaKey === 'deadpool') {
+        pcShowView('detail-movie');
+      } else if (mediaKey === 'collection') {
+        pcShowView('detail-collection');
       }
     }
 
-    function pcShowToast(msg) {
-      showToast(msg);
+    // 5. 播放器模态框逻辑
+    let isPlaying = true;
+    function openPlayerModal(title, type) {
+      const modal = document.getElementById('player-modal');
+      const titleEl = document.getElementById('player-title');
+      titleEl.innerText = title;
+      modal.classList.remove('hidden');
+      isPlaying = true;
+      document.getElementById('btn-play-pause').innerHTML = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
     }
 
-    // 3. 移动端页面切换
-    function mobileShowView(view) {
-      const home = document.getElementById('mobile-view-home');
-      const detail = document.getElementById('mobile-view-detail');
-      if (view === 'home') {
-        home.classList.remove('hidden');
-        detail.classList.add('hidden');
+    function closePlayerModal() {
+      document.getElementById('player-modal').classList.add('hidden');
+      document.getElementById('episode-drawer').classList.add('hidden');
+    }
+
+    function togglePlayState() {
+      isPlaying = !isPlaying;
+      const btn = document.getElementById('btn-play-pause');
+      const icon = document.getElementById('player-center-icon');
+
+      if (isPlaying) {
+        btn.innerHTML = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>';
+        showToast('播放已继续');
       } else {
-        home.classList.add('hidden');
-        detail.classList.remove('hidden');
+        btn.innerHTML = '<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>';
+        icon.style.opacity = '1';
+        setTimeout(() => { icon.style.opacity = '0'; }, 600);
+        showToast('播放已暂停');
       }
-      document.getElementById('mobile-scroll-container').scrollTop = 0;
     }
 
-    // 4. TV 端视图与遥控器焦点游走逻辑
+    function seekPlayer(e) {
+      const rect = e.currentTarget.getBoundingClientRect();
+      const clickX = e.clientX - rect.left;
+      const pct = Math.max(0, Math.min(100, (clickX / rect.width) * 100));
+      document.getElementById('player-progress-bar').style.width = pct + '%';
+      const curMin = Math.floor((pct / 100) * 45);
+      document.getElementById('player-current-time').innerText = `${curMin < 10 ? '0' : ''}${curMin}:30`;
+      showToast(`已快进至 ${curMin}:30`);
+    }
+
+    function toggleDanmaku() {
+      const container = document.getElementById('danmaku-container');
+      const btn = document.getElementById('btn-danmaku-toggle');
+      if (container.classList.contains('hidden')) {
+        container.classList.remove('hidden');
+        btn.innerText = '弹幕：开';
+        btn.className = "px-3 py-1.5 rounded-full bg-blue-600 text-white font-medium";
+      } else {
+        container.classList.add('hidden');
+        btn.innerText = '弹幕：关';
+        btn.className = "px-3 py-1.5 rounded-full bg-white/10 text-gray-300 font-medium";
+      }
+    }
+
+    function toggleEpisodeDrawer() {
+      const drawer = document.getElementById('episode-drawer');
+      drawer.classList.toggle('hidden');
+    }
+
+    function switchEpisode(ep) {
+      document.getElementById('player-title').innerText = `小城良方 - 第${ep}集`;
+      showToast(`正在通过本地代理切换至第 ${ep} 集`);
+      toggleEpisodeDrawer();
+    }
+
+    function toggleFullScreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+        showToast('进入全屏观影模式');
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    }
+
+    // 6. 全局搜索
+    function openSearchModal() {
+      document.getElementById('search-modal').classList.remove('hidden');
+    }
+    function closeSearchModal() {
+      document.getElementById('search-modal').classList.add('hidden');
+    }
+
+    // 7. TV 遥控器十字焦点游走
     let currentTvIndex = 0;
     const tvFocusableElements = [
       'tv-nav-home',
@@ -1460,66 +1976,54 @@
     function clickCurrentTvFocus() {
       const targetId = tvFocusableElements[currentTvIndex];
       const targetEl = document.querySelector(`[data-tv-id="${targetId}"]`);
-      if (targetEl) {
-        targetEl.click();
-      }
+      if (targetEl) targetEl.click();
     }
 
     function navigateTvBack() {
+      const player = document.getElementById('player-modal');
+      if (!player.classList.contains('hidden')) {
+        closePlayerModal();
+        return;
+      }
       tvShowView('home');
       showToast('遥控器返回首页');
     }
 
     function tvShowView(view) {
-      const home = document.getElementById('tv-view-home');
-      const detail = document.getElementById('tv-view-detail');
-      if (view === 'home') {
-        home.classList.remove('hidden');
-        detail.classList.add('hidden');
-        currentTvIndex = 1; // 焦点落回精选
-      } else {
-        home.classList.add('hidden');
-        detail.classList.remove('hidden');
-      }
+      currentTvIndex = 1;
       updateTvFocusVisuals();
     }
 
-    // 监听键盘按键用于直接控制 TV 遥控
+    // 键盘支持
     window.addEventListener('keydown', (e) => {
+      if (e.key === 'f' || e.key === 'F') {
+        const player = document.getElementById('player-modal');
+        if (!player.classList.contains('hidden')) toggleFullScreen();
+      }
+      if (e.key === 'Escape') {
+        closeSearchModal();
+        closeSettingsModal();
+        closePlayerModal();
+      }
+
       const tvContainer = document.getElementById('container-tv');
       if (tvContainer.classList.contains('hidden')) return;
 
-      if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        navigateTvFocus('right');
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        navigateTvFocus('left');
-      } else if (e.key === 'ArrowDown') {
-        e.preventDefault();
-        navigateTvFocus('down');
-      } else if (e.key === 'ArrowUp') {
-        e.preventDefault();
-        navigateTvFocus('up');
-      } else if (e.key === 'Enter') {
-        e.preventDefault();
-        clickCurrentTvFocus();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        navigateTvBack();
-      }
+      if (e.key === 'ArrowRight') { e.preventDefault(); navigateTvFocus('right'); }
+      else if (e.key === 'ArrowLeft') { e.preventDefault(); navigateTvFocus('left'); }
+      else if (e.key === 'ArrowDown') { e.preventDefault(); navigateTvFocus('down'); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); navigateTvFocus('up'); }
+      else if (e.key === 'Enter') { e.preventDefault(); clickCurrentTvFocus(); }
     });
 
-    // 5. 设置中心模态框
+    // 8. 设置中心
     function openGlobalSettings(tab) {
       document.getElementById('settings-modal').classList.remove('hidden');
       if (tab) switchSettingTab(tab);
     }
-
     function closeSettingsModal() {
       document.getElementById('settings-modal').classList.add('hidden');
     }
-
     function switchSettingTab(tab) {
       const tabs = ['sources', 'scraper', 'playback', 'danmaku', 'controls'];
       tabs.forEach(t => {
@@ -1535,24 +2039,14 @@
       if (activePanel) activePanel.classList.remove('hidden');
     }
 
-    // 6. 播放稳定性架构指南弹窗
-    function openArchitectureGuide() {
-      document.getElementById('tech-modal').classList.remove('hidden');
-    }
-    function closeArchitectureGuide() {
-      document.getElementById('tech-modal').classList.add('hidden');
-    }
-
-    // 7. Toast 提示
+    // 9. Toast 提示
     let toastTimeout;
     function showToast(msg) {
       const toast = document.getElementById('toast');
       toast.innerText = msg;
       toast.classList.remove('hidden');
       clearTimeout(toastTimeout);
-      toastTimeout = setTimeout(() => {
-        toast.classList.add('hidden');
-      }, 2400);
+      toastTimeout = setTimeout(() => { toast.classList.add('hidden'); }, 2200);
     }
   </script>
 </body>
