@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nipaplay/services/bangumi_service.dart';
+import 'package:nipaplay/services/quark/quark_service.dart';
 import 'package:nipaplay/services/bangumi_api_service.dart';
 import 'package:nipaplay/services/quarterly_review_cache.dart';
 import 'package:nipaplay/models/bangumi_model.dart';
@@ -678,7 +679,10 @@ class _AnimeDetailPageState extends State<AnimeDetailPage>
     try {
       BangumiAnime anime;
 
-      if (kIsWeb) {
+      final catalogDetail = QuarkService.instance.detailForWork(animeId);
+      if (catalogDetail != null) {
+        anime = catalogDetail;
+      } else if (kIsWeb) {
         // Web environment: fetch from local API
         try {
           final apiUri =

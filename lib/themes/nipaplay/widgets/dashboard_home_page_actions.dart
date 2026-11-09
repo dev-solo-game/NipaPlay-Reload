@@ -94,10 +94,10 @@ extension DashboardHomePageActions on _DashboardHomePageState {
     _navigateToEmbyDetail(item.id);
   }
 
-  void _onLocalAnimeItemTap(LocalAnimeItem item) {
+  void _onLibraryAnimeItemTap(int animeId) {
     // 打开动画详情页
-    ThemedAnimeDetail.show(context, item.animeId).then((result) {
-      if (result != null) {
+    ThemedAnimeDetail.show(context, animeId).then((result) {
+      if (result != null && mounted) {
         // 刷新观看历史
         Provider.of<WatchHistoryProvider>(context, listen: false).refresh();
         // 🔥 修复Flutter状态错误：使用addPostFrameCallback
@@ -108,6 +108,20 @@ extension DashboardHomePageActions on _DashboardHomePageState {
         });
       }
     });
+  }
+
+  Future<void> _onQuarkLibraryItemTap(WatchHistoryItem item) async {
+    final episodes = context.read<WatchHistoryProvider>().quarkLibraryHistory
+        .where((episode) => episode.animeId == item.animeId).toList()
+      ..sort((a, b) => (a.episodeId ?? 0).compareTo(b.episodeId ?? 0));
+    final result = await showMediaCollectionDetail(
+      context,
+      item,
+      episodes: episodes,
+      sourceLabel: '夸克媒体库',
+      detail: QuarkService.instance.detailForWork(item.animeId),
+    );
+    if (mounted && result != null) _onWatchHistoryItemTap(result);
   }
 
   void _onDandanplayGroupTap(DandanplayRemoteAnimeGroup group) async {

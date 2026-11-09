@@ -62,11 +62,21 @@ class QuarkQrCodeStatus {
       );
 }
 
+class QuarkRateLimitException extends StateError {
+  QuarkRateLimitException(this.retryAfter) : super('夸克请求过于频繁，扫描已暂停');
+
+  final Duration retryAfter;
+}
+
 /// 夸克网盘 API 客户端
 class QuarkApiClient {
-  static const String baseDriveUrl = 'https://drive-pc.quark.cn/1/clouddrive';
+  static const String baseDriveUrl = 'https://drive.quark.cn/1/clouddrive';
   static const String uopUrl = 'https://uop.quark.cn/cas/ajax';
   static const String panUrl = 'https://pan.quark.cn';
+  static const String downloadUserAgent =
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
+      '(KHTML, like Gecko) quark-cloud-drive/2.5.20 Chrome/100.0.4896.160 '
+      'Electron/18.3.5.4-b478491100 Safari/537.36 Channel/pckk_other_ch';
 
   static const Map<String, String> defaultHeaders = {
     'User-Agent':
@@ -83,14 +93,19 @@ class QuarkApiClient {
   };
 
   final Dio _dio;
+  final FutureOr<void> Function(String previousCookie, String cookie)?
+      _onCookieRefreshed;
 
-  QuarkApiClient({Dio? dio})
-      : _dio = dio ??
+  QuarkApiClient({
+    Dio? dio,
+    FutureOr<void> Function(String previousCookie, String cookie)?
+        onCookieRefreshed,
+  })  : _onCookieRefreshed = onCookieRefreshed,
+        _dio = dio ??
             Dio(
               BaseOptions(
                 connectTimeout: const Duration(seconds: 15),
                 receiveTimeout: const Duration(seconds: 20),
-                headers: defaultHeaders,
               ),
             );
 
@@ -105,6 +120,7 @@ class QuarkApiClient {
         'v': '1.2',
         'request_id': requestId,
       },
+      options: Options(headers: defaultHeaders),
     );
 
     final data = response.data;
@@ -141,6 +157,7 @@ class QuarkApiClient {
         'token': token,
         'request_id': requestId,
       },
+      options: Options(headers: defaultHeaders),
     );
 
     final data = response.data;
@@ -210,6 +227,7 @@ class QuarkApiClient {
         '$panUrl/account/info',
         queryParameters: {'st': ticket, 'lw': 'scan'},
         options: Options(
+          headers: defaultHeaders,
           followRedirects: false,
           validateStatus: (status) => status != null && status < 500,
         ),
@@ -225,6 +243,7 @@ class QuarkApiClient {
         '$panUrl/account/login',
         queryParameters: {'ticket': ticket},
         options: Options(
+          headers: defaultHeaders,
           followRedirects: false,
           validateStatus: (status) => status != null && status < 500,
         ),
@@ -243,6 +262,7 @@ class QuarkApiClient {
       '$panUrl/account/info',
       options: Options(
         headers: {
+          ...defaultHeaders,
           'Cookie': cookie,
         },
       ),
@@ -253,61 +273,68 @@ class QuarkApiClient {
       final accountData = data['data'] as Map<String, dynamic>? ?? {};
       return accountData;
     }
-    throw StateError('获取账号信息失败: ${data['message'] ?? '未知错误'}');
+    final message = data is Map ? data['message'] : null;
+    throw StateError('获取账号信息失败: ${message ?? '未知错误'}');
   }
 
-  /// 4. 列出目录下的文件与文件夹
+  /// 按 OpenList 夸克驱动的约定验证网盘会话。
+  Future<String> validateSession(String cookie) async {
+    var verifiedCookie = cookie;
+    await _requestDrive(
+      '/config',
+      cookie: cookie,
+      onCookieRefreshed: (_, refreshed) => verifiedCookie = refreshed,
+    );
+    return verifiedCookie;
+  }
+
+  Future<Map<String, dynamic>> getMemberInfo(String cookie) async {
+    final data = await _requestDrive(
+      '/member',
+      cookie: cookie,
+      queryParameters: {
+        'fetch_subscribe': 'false',
+        '_ch': 'home',
+        'fetch_identity': 'false',
+      },
+    );
+    return data['data'] as Map<String, dynamic>? ?? {};
+  }
+
+  /// 列出目录下的文件与文件夹
   Future<Map<String, dynamic>> listFiles({
     required String cookie,
     String pdirFid = '0',
     int page = 1,
     int size = 100,
-    String sort = 'file_type:desc,updated_at:desc',
+    String? sort,
   }) async {
-    final response = await _dio.post(
-      '$baseDriveUrl/file/sort',
+    final data = await _requestDrive(
+      '/file/sort',
+      cookie: cookie,
       queryParameters: {
-        'pr': 'ucpro',
-        'fr': 'pc',
-      },
-      data: {
         'pdir_fid': pdirFid,
         '_page': page,
         '_size': size,
-        '_sort': sort,
         '_fetch_total': 1,
+        'fetch_all_file': 1,
+        'fetch_risk_file_name': 1,
+        if (sort != null) '_sort': sort,
       },
-      options: Options(
-        headers: {
-          'Cookie': cookie,
-          'Content-Type': 'application/json',
-        },
-      ),
     );
 
-    final data = response.data;
-    if (data is Map && data['status'] == 200) {
-      final innerData = data['data'] as Map<String, dynamic>? ?? {};
-      final list = innerData['list'] as List? ?? [];
-      final total = innerData['total'] as int? ?? list.length;
-
-      final files = list
+    final innerData = data['data'] as Map<String, dynamic>? ?? {};
+    final list = innerData['list'] as List? ?? [];
+    final metadata = data['metadata'] as Map?;
+    return {
+      'total': metadata?['_total'] as int? ??
+          innerData['total'] as int? ??
+          list.length,
+      'files': list
           .whereType<Map<String, dynamic>>()
-          .map((item) => QuarkFile.fromJson(item))
-          .toList();
-
-      return {
-        'total': total,
-        'files': files,
-      };
-    }
-
-    final code = data is Map ? data['code'] : -1;
-    final message = data is Map ? data['message'] : '未知错误';
-    if (code == 41001 || code == 41002 || (data is Map && data['status'] == 401)) {
-      throw StateError('夸克登录状态已过期，请重新登录 (code: $code)');
-    }
-    throw StateError('获取文件列表失败: $message (code: $code)');
+          .map(QuarkFile.fromJson)
+          .toList(),
+    };
   }
 
   /// 5. 递归或层级搜索文件
@@ -352,35 +379,94 @@ class QuarkApiClient {
     required String cookie,
     required String fid,
   }) async {
-    final response = await _dio.post(
-      '$baseDriveUrl/file/download',
+    final data = await _requestDrive(
+      '/file/download',
+      cookie: cookie,
+      method: 'POST',
+      userAgent: downloadUserAgent,
+      body: {
+        'fids': [fid],
+      },
+    );
+
+    final list = data['data'] as List? ?? [];
+    if (list.isNotEmpty && list.first is Map) {
+      final url = list.first['download_url'] as String?;
+      if (url != null && url.isNotEmpty) return url;
+    }
+    throw StateError('夸克网盘未返回下载链接');
+  }
+
+  Future<Map<String, dynamic>> _requestDrive(
+    String path, {
+    required String cookie,
+    String method = 'GET',
+    Map<String, dynamic> queryParameters = const {},
+    Map<String, dynamic>? body,
+    String? userAgent,
+    FutureOr<void> Function(String, String)? onCookieRefreshed,
+  }) async {
+    final response = await _dio.request<dynamic>(
+      '$baseDriveUrl$path',
       queryParameters: {
         'pr': 'ucpro',
         'fr': 'pc',
+        ...queryParameters,
       },
-      data: {
-        'fids': [fid],
-      },
+      data: body,
       options: Options(
+        method: method,
+        validateStatus: (status) => status != null,
         headers: {
           'Cookie': cookie,
-          'Content-Type': 'application/json',
+          'Referer': panUrl,
+          'Accept': 'application/json, text/plain, */*',
+          if (userAgent != null) 'User-Agent': userAgent,
         },
       ),
     );
 
-    final data = response.data;
-    if (data is Map && data['status'] == 200) {
-      final list = data['data'] as List? ?? [];
-      if (list.isNotEmpty && list[0] is Map) {
-        final downloadUrl = list[0]['download_url'] as String?;
-        if (downloadUrl != null && downloadUrl.isNotEmpty) {
-          return downloadUrl;
-        }
-      }
+    final refresh = onCookieRefreshed ?? _onCookieRefreshed;
+    if (refresh != null) {
+      final refreshed = _refreshDriveCookie(cookie, response.headers);
+      if (refreshed != cookie) await refresh(cookie, refreshed);
     }
 
-    final message = data is Map ? data['message'] : '获取下载直链失败';
-    throw StateError('获取下载链接失败: $message');
+    final data = response.data;
+    final httpStatus = response.statusCode ?? 0;
+    final code = data is Map ? data['code'] : null;
+    final status = data is Map ? data['status'] : null;
+    if (httpStatus == 429 || status == 429) {
+      final seconds = int.tryParse(response.headers.value('retry-after') ?? '');
+      throw QuarkRateLimitException(Duration(seconds: seconds == null || seconds < 60 ? 60 : seconds));
+    }
+    if (httpStatus == 401 || status == 401 || code == 41001 || code == 41002) {
+      throw StateError('夸克登录状态已过期，请重新登录');
+    }
+    if (data is! Map<String, dynamic> ||
+        httpStatus < 200 ||
+        httpStatus >= 300 ||
+        (status is int && status >= 400) ||
+        (code != null && code != 0)) {
+      final message = data is Map ? data['message'] : null;
+      throw StateError('夸克网盘请求失败 ($path, HTTP $httpStatus)：${message ?? '未知错误'}');
+    }
+    return data;
+  }
+
+  String _refreshDriveCookie(String cookie, Headers headers) {
+    const prefix = '__puus=';
+    for (final header in headers['set-cookie'] ?? const <String>[]) {
+      final pair = header.split(';').first.trim();
+      if (!pair.startsWith(prefix) || pair.length == prefix.length) continue;
+
+      final existing = cookie.split(';').map((part) => part.trim());
+      if (existing.contains(pair)) return cookie;
+      return [
+        ...existing.where((part) => part.isNotEmpty && !part.startsWith(prefix)),
+        pair,
+      ].join('; ');
+    }
+    return cookie;
   }
 }

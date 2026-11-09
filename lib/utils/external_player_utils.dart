@@ -42,6 +42,9 @@ Future<String?> resolveExternalPlayerMediaPath(PlayableItem item) async {
     if (!SMBProxyService.instance.isRunning) return null;
     return MediaSourceUtils.resolveSmbPathToUrl(finalPath);
   }
+  if (MediaSourceUtils.isQuarkPath(finalPath)) {
+    return MediaSourceUtils.resolveQuarkPathToUrlInitialized(finalPath);
+  }
   return finalPath;
 }
 

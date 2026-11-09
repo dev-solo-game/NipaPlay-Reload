@@ -5,6 +5,7 @@ import 'package:nipaplay/models/watch_history_database.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:nipaplay/services/file_picker_service.dart';
+import 'package:nipaplay/services/quark/quark_service.dart';
 import 'package:nipaplay/services/scan_service.dart';
 import 'package:nipaplay/utils/ios_container_path_fixer.dart';
 import 'package:nipaplay/utils/media_source_utils.dart';
@@ -13,6 +14,10 @@ import 'package:nipaplay/services/auto_sync_service.dart';
 import 'package:nipaplay/utils/globals.dart' as globals;
 
 class WatchHistoryProvider extends ChangeNotifier {
+  WatchHistoryProvider() {
+    QuarkService.instance.catalogRevision.addListener(_onQuarkCatalogChanged);
+  }
+
   List<WatchHistoryItem> _history = [];
   bool _isLoading = false;
   bool _isLoaded = false;
@@ -31,6 +36,32 @@ class WatchHistoryProvider extends ChangeNotifier {
   ScanService? _scanService;
 
   List<WatchHistoryItem> get history => _history;
+  List<WatchHistoryItem> get quarkLibraryHistory {
+    final service = QuarkService.instance;
+    if (!service.hasCatalog) {
+      return _history.where((item) =>
+          MediaSourceUtils.isQuarkPath(item.filePath) &&
+          !QuarkService.isCatalogWorkId(item.animeId)).toList(growable: false);
+    }
+    final progress = <String, WatchHistoryItem>{};
+    for (final item in _history) {
+      final path = MediaSourceUtils.parseQuarkPath(item.filePath);
+      if (path != null) progress.putIfAbsent(path.fid, () => item);
+    }
+    return service.indexedHistory.map((item) {
+      final path = MediaSourceUtils.parseQuarkPath(item.filePath)!;
+      final saved = progress[path.fid];
+      return saved == null ? item : item.copyWith(
+        watchProgress: saved.watchProgress,
+        lastPosition: saved.lastPosition,
+        duration: saved.duration,
+        videoHash: saved.videoHash,
+      );
+    }).toList(growable: false);
+  }
+
+  void _onQuarkCatalogChanged() => notifyListeners();
+
   List<WatchHistoryItem> get continueWatchingItems {
     final filtered = _history.where(_shouldDisplayInContinueWatching);
     return _deduplicateContinueWatching(filtered);
@@ -83,6 +114,7 @@ class WatchHistoryProvider extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    QuarkService.instance.catalogRevision.removeListener(_onQuarkCatalogChanged);
     // 移除监听器
     if (_scanService != null) {
       _scanService!.removeListener(_onScanServiceStateChanged);
@@ -250,9 +282,10 @@ class WatchHistoryProvider extends ChangeNotifier {
         continue;
       }
 
-      // 跳过WebDAV和SMB路径的文件存在性验证
+      // 已挂载的网络媒体使用虚拟路径，不能通过本地文件检查来判断。
       if (originalPath.startsWith('webdav://') ||
-          originalPath.startsWith('smb://')) {
+          originalPath.startsWith('smb://') ||
+          MediaSourceUtils.isQuarkPath(originalPath)) {
         validItems.add(item);
         continue;
       }

@@ -11,9 +11,11 @@ import 'package:nipaplay/models/dandanplay_remote_model.dart';
 import 'package:nipaplay/models/shared_remote_library.dart';
 import 'package:nipaplay/models/watch_history_model.dart';
 import 'package:nipaplay/providers/shared_remote_library_provider.dart';
+import 'package:nipaplay/providers/watch_history_provider.dart';
 import 'package:nipaplay/services/dandanplay_remote_service.dart';
 import 'package:nipaplay/services/emby_service.dart';
 import 'package:nipaplay/services/jellyfin_service.dart';
+import 'package:nipaplay/services/quark/quark_service.dart';
 import 'package:nipaplay/services/smb_proxy_service.dart';
 import 'package:nipaplay/services/smb_service.dart';
 import 'package:nipaplay/services/webdav_service.dart';
@@ -93,6 +95,34 @@ class PlaybackSourceService {
       if (MediaSourceUtils.isWebDavPath(path)) {
         return await _resolveWebDav(item);
       }
+      if (MediaSourceUtils.isQuarkPath(path)) {
+        final history = context.read<WatchHistoryProvider>().quarkLibraryHistory;
+        final episodes = history.where((entry) => entry.animeId == animeId && animeId != null).toList()
+          ..sort((a, b) => (a.episodeId ?? 0).compareTo(b.episodeId ?? 0));
+        final detail = QuarkService.instance.detailForWork(animeId);
+        return PlaybackDetailContext(
+          sourceKind: PlaybackSourceKind.networkStream,
+          sourceLabel: '夸克媒体库',
+          sourceKey: 'quark:${animeId ?? path}',
+          title: _resolvedTitle(item),
+          subtitle: item.subtitle ?? item.historyItem?.episodeTitle,
+          summary: detail?.summary,
+          imageUrl: detail?.imageUrl ?? item.historyItem?.thumbnailPath,
+          animeId: animeId,
+          isIdentified: animeId != null,
+          episodeLoader: () async => episodes.isEmpty ? [_episodeFromItem(item)] : [
+            for (final episode in episodes)
+              _episodeFromItem(PlayableItem(
+                videoPath: episode.filePath,
+                title: episode.animeName,
+                subtitle: episode.episodeTitle,
+                animeId: episode.animeId,
+                episodeId: episode.episodeId,
+                historyItem: episode,
+              )),
+          ],
+        );
+      }
       if (_isNetworkPath(path)) {
         return _singleItemContext(
           item,
@@ -161,7 +191,7 @@ class PlaybackSourceService {
       return PlaybackSourceKind.smb;
     }
     if (MediaSourceUtils.isWebDavPath(path)) return PlaybackSourceKind.webDav;
-    if (_isNetworkPath(path)) return PlaybackSourceKind.networkStream;
+    if (_isNetworkPath(path) || MediaSourceUtils.isQuarkPath(path)) return PlaybackSourceKind.networkStream;
     return animeId != null && animeId > 0
         ? PlaybackSourceKind.localLibrary
         : PlaybackSourceKind.localFile;

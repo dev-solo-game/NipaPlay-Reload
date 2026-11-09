@@ -5,7 +5,6 @@ import 'package:flutter/cupertino.dart' as cupertino;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart' as material;
 import 'package:http/http.dart' as http;
-import 'package:path/path.dart' as path;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -15,13 +14,13 @@ import 'package:nipaplay/app/app_size_class_scope.dart';
 import 'package:nipaplay/app/unified_media_library_sections.dart';
 import 'package:nipaplay/media_library/adaptive_media_library_primitives.dart';
 import 'package:nipaplay/media_library/media_collection_empty_content.dart';
+import 'package:nipaplay/media_library/media_collection_detail.dart';
 import 'package:nipaplay/models/bangumi_model.dart';
-import 'package:nipaplay/models/playable_item.dart';
-import 'package:nipaplay/models/shared_remote_library.dart';
 import 'package:nipaplay/models/watch_history_model.dart';
 import 'package:nipaplay/providers/appearance_settings_provider.dart';
 import 'package:nipaplay/providers/watch_history_provider.dart';
 import 'package:nipaplay/services/bangumi_service.dart';
+import 'package:nipaplay/services/quark/quark_service.dart';
 import 'package:nipaplay/services/web_remote_access_service.dart';
 import 'package:nipaplay/themes/cupertino/widgets/cupertino_anime_card.dart';
 import 'package:nipaplay/themes/cupertino/widgets/cupertino_media_search_toolbar.dart';
@@ -31,7 +30,6 @@ import 'package:nipaplay/themes/nipaplay/widgets/horizontal_anime_card.dart';
 import 'package:nipaplay/themes/nipaplay/widgets/local_library_control_bar.dart';
 import 'package:nipaplay/themes/nipaplay/widgets/large_screen_mode_scope.dart';
 import 'package:nipaplay/themes/nipaplay/widgets/large_screen_page_scaffold.dart';
-import 'package:nipaplay/themes/nipaplay/widgets/themed_anime_detail.dart';
 import 'package:nipaplay/utils/app_accent_color.dart';
 
 enum MediaCollectionSort { comprehensive, recentlyAdded, name }
@@ -515,14 +513,16 @@ class _AdaptiveMediaCollectionViewState
           });
         }
 
+        final libraryHistory = widget.source == UnifiedMediaLibrarySource.quark
+            ? provider.quarkLibraryHistory : provider.history;
         final allItems =
             kIsWeb && widget.source == UnifiedMediaLibrarySource.local
                 ? _webCollectionItems
                 : mediaLibraryLatestItemsByAnime(
-                    provider.history,
+                    libraryHistory,
                     widget.source,
                   );
-        _episodeCounts = _episodeCountByAnime(provider.history);
+        _episodeCounts = _episodeCountByAnime(libraryHistory);
         _recomputeNewContentState();
         final filteredItems = _filterAndSort(allItems, _lastOpenTime);
         for (final item in filteredItems) {
@@ -547,7 +547,7 @@ class _AdaptiveMediaCollectionViewState
                 isLoading: _isLoadingWebCollection ||
                     (provider.isLoading && !provider.isLoaded),
                 items: filteredItems,
-                allHistory: provider.history,
+                allHistory: libraryHistory,
                 details: _details,
                 newAnimeIds: _newAnimeIds,
                 onRefresh: _sync,
@@ -701,6 +701,15 @@ class _AdaptiveMediaCollectionViewState
   }
 
   void _ensureDetail(int animeId) {
+    if (QuarkService.isCatalogWorkId(animeId)) {
+      final detail = QuarkService.instance.detailForWork(animeId);
+      if (detail == null) {
+        _details.remove(animeId);
+      } else {
+        _details[animeId] = detail;
+      }
+      return;
+    }
     if (_details.containsKey(animeId) || _detailRequests.containsKey(animeId)) {
       return;
     }
@@ -803,7 +812,9 @@ class _AdaptiveMediaCollectionViewState
       });
     }
     final provider = context.read<WatchHistoryProvider>();
-    final episodes = provider.history
+    final history = widget.source == UnifiedMediaLibrarySource.quark
+        ? provider.quarkLibraryHistory : provider.history;
+    final episodes = history
         .where((candidate) =>
             candidate.animeId == item.animeId &&
             mediaLibraryItemMatchesSource(candidate, widget.source))
@@ -811,59 +822,13 @@ class _AdaptiveMediaCollectionViewState
       ..sort(
         (a, b) => (a.episodeId ?? 0).compareTo(b.episodeId ?? 0),
       );
-    final episodeByPath = <String, WatchHistoryItem>{
-      for (final episode in episodes) episode.filePath: episode,
-    };
-    final detail = _details[item.animeId];
-    final summary = SharedRemoteAnimeSummary(
-      animeId: item.animeId!,
-      name: item.animeName,
-      nameCn: detail?.nameCn,
-      summary: detail?.summary,
-      imageUrl: _imageUrl(item, detail),
-      lastWatchTime: item.lastWatchTime,
-      episodeCount: episodes.length,
-      hasMissingFiles: false,
-    );
-
-    // 在导航到详情页前记录当前焦点（用户选中的作品卡片），
-    // 以便从详情页返回后恢复焦点到该卡片，而非分区栏按钮。
     final previousFocus = material.FocusManager.instance.primaryFocus;
-
-    final result = await ThemedAnimeDetail.show(
+    final result = await showMediaCollectionDetail(
       context,
-      item.animeId!,
-      sharedSummary: summary,
-      sharedSourceLabel: _sourceLabel,
-      sharedEpisodeLoader: () async => episodes
-          .map(
-            (episode) => SharedRemoteEpisode(
-              shareId: episode.filePath,
-              title: episode.episodeTitle ?? episode.animeName,
-              fileName: path.basename(episode.filePath),
-              streamPath: episode.filePath,
-              fileExists: true,
-              animeId: episode.animeId,
-              episodeId: episode.episodeId,
-              duration: episode.duration,
-              lastPosition: episode.lastPosition,
-              progress: episode.watchProgress,
-              lastWatchTime: episode.lastWatchTime,
-              videoHash: episode.videoHash,
-            ),
-          )
-          .toList(),
-      sharedEpisodeBuilder: (episode) {
-        final historyItem = episodeByPath[episode.shareId]!;
-        return PlayableItem(
-          videoPath: historyItem.filePath,
-          title: historyItem.animeName,
-          subtitle: historyItem.episodeTitle,
-          animeId: historyItem.animeId,
-          episodeId: historyItem.episodeId,
-          historyItem: historyItem,
-        );
-      },
+      item,
+      episodes: episodes,
+      sourceLabel: _sourceLabel,
+      detail: _details[item.animeId],
     );
 
     // 从详情页返回后，将焦点恢复到此前选中的作品卡片。

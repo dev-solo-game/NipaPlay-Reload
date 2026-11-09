@@ -3,6 +3,7 @@ import 'package:nipaplay/models/episode_file_candidate.dart';
 import 'package:nipaplay/models/playable_item.dart';
 import 'package:nipaplay/models/watch_history_model.dart';
 import 'package:nipaplay/providers/watch_history_provider.dart';
+import 'package:nipaplay/services/quark/quark_service.dart';
 import 'package:nipaplay/themes/nipaplay/widgets/episode_file_selection_dialog.dart';
 import 'package:nipaplay/themes/nipaplay/widgets/blur_snackbar.dart';
 import 'package:nipaplay/utils/media_identity_resolver.dart';
@@ -76,6 +77,7 @@ class EpisodeFileSelectionService {
   }) async {
     bool cancelled() => isCancelled?.call() ?? false;
     if (cancelled()) return null;
+    if (QuarkService.isCatalogWorkId(requested.animeId)) return requested;
     final stored = await _loadHistory(requested.videoPath);
     final history = requested.historyItem ?? stored;
     if (cancelled()) return null;

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:nipaplay/services/quark/quark_api_client.dart';
 import 'package:nipaplay/services/quark/quark_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shelf/shelf.dart';
@@ -14,10 +15,6 @@ import 'package:shelf_router/shelf_router.dart';
 class QuarkProxyService {
   static const String _portKey = 'quark_proxy_port';
   static const int _defaultPort = 33223;
-  static const String _defaultUserAgent =
-      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 '
-      '(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
-
   QuarkProxyService._();
   static final QuarkProxyService instance = QuarkProxyService._();
 
@@ -94,7 +91,7 @@ class QuarkProxyService {
     final resolvedPort = _port > 0 ? _port : _defaultPort;
     final query = <String, String>{'fid': fid};
     if (fileName != null && fileName.isNotEmpty) {
-      query['name'] = fileName;
+      query['file'] = fileName;
     }
 
     return Uri(
@@ -127,10 +124,10 @@ class QuarkProxyService {
     final method = headOnly ? 'HEAD' : 'GET';
 
     // 尝试获取或刷新直链（最多重试2次）
-    String? currentUrl;
     for (int attempt = 1; attempt <= 2; attempt++) {
+      final ({String url, String cookie}) link;
       try {
-        currentUrl = await QuarkService.instance.getDownloadUrl(
+        link = await QuarkService.instance.getDownloadLink(
           fid,
           forceRefresh: attempt > 1,
         );
@@ -140,9 +137,8 @@ class QuarkProxyService {
           return Response(HttpStatus.internalServerError,
               body: 'Failed to fetch download url: $e');
         }
+        continue;
       }
-
-      if (currentUrl == null) continue;
 
       final client = HttpClient()
         ..connectionTimeout = const Duration(seconds: 15)
@@ -150,10 +146,18 @@ class QuarkProxyService {
 
       var handedToStream = false;
       try {
-        final targetUri = Uri.parse(currentUrl);
+        final targetUri = Uri.parse(link.url);
         final upstreamReq = await client.openUrl(method, targetUri);
         upstreamReq.followRedirects = true;
-        upstreamReq.headers.set(HttpHeaders.userAgentHeader, _defaultUserAgent);
+        upstreamReq.headers.set(
+          HttpHeaders.userAgentHeader,
+          QuarkApiClient.downloadUserAgent,
+        );
+        upstreamReq.headers.set(HttpHeaders.refererHeader, QuarkApiClient.panUrl);
+        if (targetUri.scheme == 'https' &&
+            (targetUri.host == 'quark.cn' || targetUri.host.endsWith('.quark.cn'))) {
+          upstreamReq.headers.set(HttpHeaders.cookieHeader, link.cookie);
+        }
         upstreamReq.headers.set(HttpHeaders.acceptHeader, '*/*');
         if (rangeHeader != null) {
           upstreamReq.headers.set(HttpHeaders.rangeHeader, rangeHeader);
@@ -167,7 +171,6 @@ class QuarkProxyService {
                 upstreamResp.statusCode == HttpStatus.unauthorized ||
                 upstreamResp.statusCode == HttpStatus.gone) &&
             attempt == 1) {
-          client.close(force: true);
           continue;
         }
 
@@ -197,12 +200,13 @@ class QuarkProxyService {
           headers: responseHeaders,
           body: _bindClientToStream(upstreamResp, client),
         );
-      } catch (e) {
+      } catch (_) {
+        if (attempt == 2) {
+          return Response(HttpStatus.badGateway, body: 'Upstream request failed');
+        }
+      } finally {
         if (!handedToStream) {
           client.close(force: true);
-        }
-        if (attempt == 2) {
-          return Response(HttpStatus.badGateway, body: 'Upstream error: $e');
         }
       }
     }

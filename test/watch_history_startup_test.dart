@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nipaplay/app/unified_media_library_sections.dart';
 import 'package:nipaplay/models/watch_history_database.dart';
 import 'package:nipaplay/providers/watch_history_provider.dart';
+import 'package:nipaplay/utils/media_source_utils.dart';
 import 'package:nipaplay/utils/storage_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -56,13 +58,32 @@ void main() {
       'last_watch_time': DateTime.now().toIso8601String(),
       'is_from_scan': 0,
     });
+    final quarkPath = MediaSourceUtils.buildQuarkPath('fid', '第01集.mp4');
+    await db.insert('watch_history', {
+      'file_path': quarkPath,
+      'anime_name': 'Quark Anime',
+      'anime_id': 1,
+      'episode_id': 1,
+      'watch_progress': 0,
+      'last_position': 0,
+      'duration': 0,
+      'last_watch_time': DateTime.now().toIso8601String(),
+      'is_from_scan': 1,
+    });
     final provider = WatchHistoryProvider();
     final publishedCounts = <int>[];
     provider.addListener(() => publishedCounts.add(provider.history.length));
     await provider.loadHistory();
     expect(publishedCounts, contains(40));
-    expect(publishedCounts, contains(1001));
+    expect(publishedCounts, contains(1002));
     expect(await database.getHistoryByFilePath(offline), isNotNull);
+    final quarkLibrary = mediaLibraryLatestItemsByAnime(
+      provider.history,
+      UnifiedMediaLibrarySource.quark,
+    );
+    expect(quarkLibrary.single.filePath, quarkPath);
+    expect(provider.continueWatchingItems.map((item) => item.filePath),
+        isNot(contains(quarkPath)));
     provider.dispose();
   });
 }

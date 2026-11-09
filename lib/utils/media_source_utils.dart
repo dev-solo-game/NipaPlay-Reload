@@ -506,13 +506,14 @@ class MediaSourceUtils {
     final uri = Uri.tryParse(filePath);
     if (uri == null) return null;
     if (uri.scheme.toLowerCase() == 'quark') {
-      final fid = uri.host;
+      final fid = RegExp(r'^quark://([^/]+)', caseSensitive: false)
+              .firstMatch(filePath)?.group(1) ?? uri.host;
       final pathSegments = uri.pathSegments;
-      final fileName = pathSegments.isNotEmpty ? Uri.decodeComponent(pathSegments.first) : '';
+      final fileName = pathSegments.isNotEmpty ? pathSegments.first : '';
       return (fid: fid, fileName: fileName);
     }
     final fid = uri.queryParameters['fid'] ?? '';
-    final name = uri.queryParameters['name'] ?? '';
+    final name = uri.queryParameters['file'] ?? uri.queryParameters['name'] ?? '';
     return (fid: fid, fileName: name);
   }
 
@@ -523,6 +524,14 @@ class MediaSourceUtils {
       parsed.fid,
       fileName: parsed.fileName,
     );
+  }
+
+  static Future<String?> resolveQuarkPathToUrlInitialized(String filePath) async {
+    if (kIsWeb) return null;
+    await QuarkService.instance.initialize();
+    if (!QuarkService.instance.isLoggedIn) throw StateError('请先登录夸克网盘');
+    await QuarkProxyService.instance.initialize();
+    return resolveQuarkPathToUrl(filePath);
   }
 
   static String? resolveRemotePathToUrl(String filePath) {

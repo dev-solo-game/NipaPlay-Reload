@@ -26,8 +26,6 @@ class QuarkManagementView extends StatefulWidget {
 }
 
 class _QuarkManagementViewState extends State<QuarkManagementView> {
-  String? _currentlyScanningFolderId;
-
   @override
   void initState() {
     super.initState();
@@ -74,33 +72,23 @@ class _QuarkManagementViewState extends State<QuarkManagementView> {
       return;
     }
 
-    setState(() {
-      _currentlyScanningFolderId = folder.id;
-    });
-
     try {
       final result = await QuarkService.instance.scanMountFolder(folder);
       if (!mounted) return;
 
-      await context.read<WatchHistoryProvider>().refresh();
+      await context.read<WatchHistoryProvider>().refreshAfterScan();
       if (!mounted) return;
 
       final total = result['total'] ?? 0;
-      final matched = result['matched'] ?? 0;
-      final failed = result['failed'] ?? 0;
+      final works = result['works'] ?? 0;
       BlurSnackBar.show(
         context,
-        '夸克网盘 [${folder.name}] 扫描完成：共发现 $total 个视频，成功刮削 $matched 个，未匹配 $failed 个',
+        '夸克网盘 [${folder.name}] 已入库 $total 个视频，归为 $works 部作品',
       );
     } catch (e) {
       if (mounted) {
-        BlurSnackBar.show(context, '扫描失败: $e');
-      }
-    } finally {
-      if (mounted) {
-        setState(() {
-          _currentlyScanningFolderId = null;
-        });
+        final message = e is StateError ? e.message : e.toString();
+        BlurSnackBar.show(context, '夸克刮削失败：$message');
       }
     }
   }
@@ -169,6 +157,42 @@ class _QuarkManagementViewState extends State<QuarkManagementView> {
     }
   }
 
+  Future<void> _configureTmdb() async {
+    var input = '';
+    final token = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('TMDB 元数据'),
+        content: TextField(
+          onChanged: (value) => input = value,
+          obscureText: true,
+          autocorrect: false,
+          enableSuggestions: false,
+          decoration: const InputDecoration(labelText: 'API 读取令牌'),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('取消')),
+          if (QuarkService.instance.hasTmdbToken)
+            TextButton(onPressed: () => Navigator.pop(dialogContext, ''), child: const Text('清除令牌')),
+          TextButton(
+            onPressed: () {
+              final value = input.trim();
+              if (value.isNotEmpty) Navigator.pop(dialogContext, value);
+            },
+            child: const Text('保存'),
+          ),
+        ],
+      ),
+    );
+    if (!mounted || token == null) return;
+    try {
+      await QuarkService.instance.setTmdbToken(token);
+      if (mounted) BlurSnackBar.show(context, '元数据来源已保存，下次刮削生效');
+    } catch (_) {
+      if (mounted) BlurSnackBar.show(context, '保存元数据配置失败');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final service = QuarkService.instance;
@@ -182,6 +206,65 @@ class _QuarkManagementViewState extends State<QuarkManagementView> {
       children: [
         // 账号信息卡片
         _buildAccountCard(account, theme, accentColor),
+        const SizedBox(height: 12),
+        LibraryManagementCard(
+          child: ListTile(
+            title: const Text('自动扫描刮削'),
+            subtitle: const Text('应用运行时，按设定周期检查挂载目录。'),
+            trailing: DropdownButton<int>(
+              value: service.autoScanHours,
+              items: [
+                for (final hours in QuarkService.autoScanIntervals)
+                  DropdownMenuItem(value: hours, child: Text(hours == 0 ? '关闭' : '每 $hours 小时')),
+              ],
+              onChanged: (hours) async {
+                if (hours == null) return;
+                try {
+                  await service.setAutoScanHours(hours);
+                } catch (error) {
+                  if (context.mounted) BlurSnackBar.show(context, '保存自动扫描间隔失败：$error');
+                }
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        LibraryManagementCard(
+          child: ListTile(
+            title: const Text('目录扫描请求间隔'),
+            subtitle: const Text('手动和自动扫描均适用，下次扫描生效。'),
+            trailing: DropdownButton<int>(
+              value: service.scanRequestSeconds,
+              items: [
+                for (final seconds in QuarkService.scanRequestIntervals)
+                  DropdownMenuItem(
+                    value: seconds,
+                    child: Text('每 $seconds 秒一页'),
+                  ),
+              ],
+              onChanged: (seconds) async {
+                if (seconds == null) return;
+                try {
+                  await service.setScanRequestSeconds(seconds);
+                } catch (error) {
+                  if (context.mounted) {
+                    BlurSnackBar.show(context, '保存目录请求间隔失败：$error');
+                  }
+                }
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        LibraryManagementCard(
+          child: ListTile(
+            title: const Text('作品资料来源'),
+            subtitle: Text(service.hasTmdbToken
+                ? 'TMDB · 通过片名和年份补充电影及电视剧资料'
+                : 'Bangumi 公开搜索 · 可配置 TMDB 读取令牌'),
+            trailing: TextButton(onPressed: _configureTmdb, child: const Text('设置 TMDB')),
+          ),
+        ),
         const SizedBox(height: 18),
 
         // 挂载目录标题与添加按钮
@@ -369,8 +452,7 @@ class _QuarkManagementViewState extends State<QuarkManagementView> {
     Color accentColor,
   ) {
     final subColor = theme.colorScheme.onSurface.withOpacity(0.65);
-    final isScanningThis = _currentlyScanningFolderId == folder.id ||
-        (QuarkService.instance.isScanning && _currentlyScanningFolderId == null);
+    final isScanningThis = QuarkService.instance.scanningFolderId == folder.id;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),

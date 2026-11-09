@@ -155,6 +155,19 @@ extension _CupertinoHomePageControls on _DashboardHomePageState {
               ),
             );
           }
+          final quarkItems = _recentQuarkItems();
+          if (quarkItems.isNotEmpty) {
+            addSection(
+              (_) => _buildCupertinoMediaSection<WatchHistoryItem>(
+                title: '夸克媒体库 - 最近添加',
+                items: quarkItems,
+                imageUrl: (item) => item.thumbnailPath ?? '',
+                itemTitle: (item) => item.animeName,
+                subtitle: (item) => item.episodeTitle,
+                onTap: _onQuarkLibraryItemTap,
+              ),
+            );
+          }
           break;
         case UnifiedHomeComponentType.localLibrary:
           addSection(
@@ -165,7 +178,7 @@ extension _CupertinoHomePageControls on _DashboardHomePageState {
                   item.imageUrl ?? _localImageCache[item.animeId] ?? '',
               itemTitle: (item) => item.animeName,
               subtitle: (item) => item.latestEpisode.episodeTitle,
-              onTap: _onLocalAnimeItemTap,
+              onTap: (item) => _onLibraryAnimeItemTap(item.animeId),
             ),
           );
           break;

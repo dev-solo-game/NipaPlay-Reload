@@ -257,9 +257,8 @@ class _AdaptiveMediaLibraryPageState extends State<AdaptiveMediaLibraryPage> {
               ? sharedProvider.smbConnections.isNotEmpty
               : _connectionsInitialized &&
                   SMBService.instance.connections.isNotEmpty,
-          showQuarkLibrary: watchHistoryProvider.isLoaded &&
-              mediaLibraryHasItemsForSource(
-                watchHistoryProvider.history,
+          showQuarkLibrary: mediaLibraryHasItemsForSource(
+                watchHistoryProvider.quarkLibraryHistory,
                 UnifiedMediaLibrarySource.quark,
               ),
           showQuarkManagement: QuarkService.instance.isLoggedIn,
@@ -325,9 +324,8 @@ class _AdaptiveMediaLibraryPageState extends State<AdaptiveMediaLibraryPage> {
                   ? sharedProvider.smbConnections.isNotEmpty
                   : _connectionsInitialized &&
                       SMBService.instance.connections.isNotEmpty,
-              showQuarkLibrary: watchHistoryProvider.isLoaded &&
-                  mediaLibraryHasItemsForSource(
-                    watchHistoryProvider.history,
+              showQuarkLibrary: mediaLibraryHasItemsForSource(
+                    watchHistoryProvider.quarkLibraryHistory,
                     UnifiedMediaLibrarySource.quark,
                   ),
               showQuarkManagement: QuarkService.instance.isLoggedIn,

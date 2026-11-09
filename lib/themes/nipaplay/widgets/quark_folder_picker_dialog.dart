@@ -65,7 +65,7 @@ class _QuarkFolderPickerDialogState extends State<QuarkFolderPickerDialog> {
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        _errorMessage = e.toString().replaceFirst('Exception: ', '');
+        _errorMessage = e is StateError ? e.message : e.toString();
         _isLoading = false;
       });
     }
@@ -217,7 +217,9 @@ class _QuarkFolderPickerDialogState extends State<QuarkFolderPickerDialog> {
               ),
               const SizedBox(width: 8),
               ElevatedButton.icon(
-                onPressed: _isLoading ? null : _confirmSelection,
+                onPressed: _isLoading || _errorMessage != null
+                    ? null
+                    : _confirmSelection,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: accentColor,
                   foregroundColor: Colors.white,

@@ -13,10 +13,11 @@ import 'package:nipaplay/services/jellyfin_dandanplay_matcher.dart';
 import 'package:nipaplay/services/emby_dandanplay_matcher.dart';
 import 'package:nipaplay/services/jellyfin_episode_mapping_service.dart';
 import 'package:nipaplay/services/emby_episode_mapping_service.dart';
+import 'package:nipaplay/services/quark/quark_service.dart';
 
 class WatchHistoryAutoMatchHelper {
   static bool shouldAutoMatch(WatchHistoryItem item) {
-    if (item.isDandanplayRemote) {
+    if (item.isDandanplayRemote || QuarkService.isCatalogWorkId(item.animeId)) {
       return false;
     }
     final hasAnimeId = _isValidId(item.animeId);

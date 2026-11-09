@@ -22,7 +22,7 @@ class QuarkAccount {
     this.isVip = false,
   });
 
-  bool get isValid => cookie.isNotEmpty && cookie.contains('__pus');
+  bool get isValid => cookie.trim().isNotEmpty;
 
   double get usedPercentage {
     if (totalCapacity <= 0) return 0.0;

@@ -241,11 +241,19 @@ Future<AdaptiveAddMediaResult?> _addQuark(BuildContext context) async {
   await QuarkService.instance.addMountFolder(mountFolder);
   if (context.mounted) {
     _showMessage(context, '已挂载目录：${mountFolder.name}，正在后台扫描刮削...');
-    unawaited(QuarkService.instance.scanMountFolder(mountFolder).then((_) {
-      if (context.mounted) {
-        context.read<WatchHistoryProvider>().refresh();
-      }
-    }));
+    unawaited(QuarkService.instance.scanMountFolder(mountFolder).then<void>(
+      (_) async {
+        if (context.mounted) {
+          await context.read<WatchHistoryProvider>().refreshAfterScan();
+        }
+      },
+      onError: (Object error) {
+        if (context.mounted) {
+          final message = error is StateError ? error.message : error.toString();
+          _showMessage(context, '夸克刮削失败：$message');
+        }
+      },
+    ));
   }
 
   return const AdaptiveAddMediaResult(

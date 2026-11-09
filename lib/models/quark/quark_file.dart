@@ -43,13 +43,18 @@ class QuarkFile {
 
   factory QuarkFile.fromJson(Map<String, dynamic> json) {
     final int? fileTypeVal = json['file_type'] as int?;
-    final int? formatTypeVal = json['format_type'] as int?;
+    final formatType = json['format_type'];
+    final fileFlag = json['file'];
     final bool isDirFlag = json['dir'] == true ||
         json['is_dir'] == true ||
         (json['obj_category'] as String?) == 'dir';
-    bool isDirectory = isDirFlag || fileTypeVal == 0 || formatTypeVal == 1;
-    if (fileTypeVal != null && fileTypeVal != 0) {
-      isDirectory = false;
+    final bool isDirectory;
+    if (fileFlag is bool) {
+      isDirectory = !fileFlag;
+    } else if (fileTypeVal != null) {
+      isDirectory = fileTypeVal == 0;
+    } else {
+      isDirectory = isDirFlag || formatType == 1;
     }
 
     final int updateTimeMs = json['updated_at'] as int? ??
@@ -62,9 +67,9 @@ class QuarkFile {
       fileSize: json['size'] as int? ?? 0,
       pdirFid: (json['pdir_fid'] ?? '').toString(),
       isDir: isDirectory,
-      fileType: json['file_type'] as int? ?? 0,
+      fileType: fileTypeVal ?? 0,
       updatedAt: DateTime.fromMillisecondsSinceEpoch(updateTimeMs),
-      formatType: json['format_type']?.toString(),
+      formatType: formatType?.toString(),
       thumbnailUrl: json['thumbnail'] as String?,
       downloadUrl: json['download_url'] as String?,
     );

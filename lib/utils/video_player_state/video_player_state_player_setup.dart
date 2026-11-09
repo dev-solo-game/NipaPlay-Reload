@@ -166,8 +166,9 @@ extension VideoPlayerStatePlayerSetup on VideoPlayerState {
     // 检查是否为网络URL (HTTP或HTTPS) 或新格式远程路径
     bool isNetworkUrl =
         videoPath.startsWith('http://') || videoPath.startsWith('https://');
+    final isQuarkStream = MediaSourceUtils.isQuarkPath(videoPath);
     bool isNewRemotePath = MediaSourceUtils.isNewWebDavPath(videoPath) ||
-        MediaSourceUtils.isNewSmbPath(videoPath);
+        MediaSourceUtils.isNewSmbPath(videoPath) || isQuarkStream;
     final bool isAndroidContentUri = !kIsWeb &&
         Platform.isAndroid &&
         MediaSourceUtils.isContentUri(videoPath);
@@ -353,7 +354,7 @@ extension VideoPlayerStatePlayerSetup on VideoPlayerState {
     // 认证代理地址（MDK 无法在 401 挑战时完成 Digest 协商）。
     final bool needsRemoteResolution = isNewRemotePath &&
         ((resolvedActualPlayUrl == null || resolvedActualPlayUrl.isEmpty) ||
-            MediaSourceUtils.isNewWebDavPath(videoPath));
+            MediaSourceUtils.isNewWebDavPath(videoPath) || isQuarkStream);
     if (needsRemoteResolution) {
       try {
         if (MediaSourceUtils.isNewWebDavPath(videoPath)) {
@@ -365,6 +366,8 @@ extension VideoPlayerStatePlayerSetup on VideoPlayerState {
               (proxyUrl != null && proxyUrl.isNotEmpty)
                   ? proxyUrl
                   : resolvedActualPlayUrl;
+        } else if (isQuarkStream) {
+          resolvedActualPlayUrl = await MediaSourceUtils.resolveQuarkPathToUrlInitialized(videoPath);
         } else if (MediaSourceUtils.isNewSmbPath(videoPath) &&
             (resolvedActualPlayUrl == null ||
                 resolvedActualPlayUrl.isEmpty)) {
@@ -1065,6 +1068,10 @@ extension VideoPlayerStatePlayerSetup on VideoPlayerState {
         if (!jellyfinDanmakuHandled) {
           Future<void> loadRemoteDanmakuForCurrentVideo() async {
             if (!canContinue()) return;
+            if (isQuarkStream && (_animeId ?? 0) <= 0) {
+              _clearDanmakuAutoLoadState();
+              return;
+            }
             // 检查是否有手动匹配的弹幕ID
             if (_episodeId != null &&
                 _animeId != null &&

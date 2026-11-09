@@ -3,6 +3,7 @@ import 'package:nipaplay/services/server_history_sync_service.dart';
 import 'package:nipaplay/services/web_server_service.dart';
 import 'package:nipaplay/services/scan_service.dart';
 import 'package:nipaplay/services/remote_control_settings.dart';
+import 'package:nipaplay/services/quark/quark_service.dart';
 
 import 'dandanplay_remote_provider.dart';
 import 'emby_provider.dart';
@@ -42,6 +43,7 @@ class ServiceProvider {
 
   static Future<void> _initializeBackground() async {
     await watchHistoryProvider.loadHistory();
+    if (!kIsWeb) await QuarkService.instance.initialize();
 
     // 初始化服务器观看历史同步（当前仅支持 Jellyfin 下行同步）
     serverHistorySyncService.initialize(

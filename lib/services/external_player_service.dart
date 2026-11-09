@@ -86,7 +86,8 @@ abstract final class ExternalPlayerService {
       _log('danmaku: 已启用跳过弹幕匹配，跳过自动获取');
     } else if (!settings.externalPlayerDanmakuOverlay) {
       _log('danmaku: 弹幕外挂未启用');
-    } else if (item.episodeId == null) {
+    } else if (item.episodeId == null ||
+        (MediaSourceUtils.isQuarkPath(item.videoPath) && (item.animeId ?? 0) <= 0)) {
       _log('danmaku: 缺少 episodeId，跳过弹幕获取');
     } else if (playerType != ExternalPlayerType.mpv && playerType != ExternalPlayerType.mpvNet && playerType != ExternalPlayerType.potPlayer) {
       _log('danmaku: $playerType 暂不支持运行时弹幕刷新，跳过弹幕获取');

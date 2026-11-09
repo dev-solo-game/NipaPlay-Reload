@@ -61,6 +61,20 @@ extension DashboardHomePageSectionsBuild on _DashboardHomePageState {
       );
     }
 
+    final quarkItems = _recentQuarkItems();
+    if (quarkItems.isNotEmpty) {
+      addSection(
+        Builder(
+          builder: (_) => _buildRecentSection(
+            title: '夸克媒体库 - 最近添加',
+            items: quarkItems,
+            scrollController: _quarkLibraryScrollController,
+            onItemTap: (item) => _onQuarkLibraryItemTap(item as WatchHistoryItem),
+          ),
+        ),
+      );
+    }
+
     return widgets;
   }
 
@@ -131,8 +145,9 @@ extension DashboardHomePageSectionsBuild on _DashboardHomePageState {
                         title: '本地媒体库 - 最近添加',
                         items: _localAnimeItems,
                         scrollController: _getLocalLibraryScrollController(),
-                        onItemTap: (item) =>
-                            _onLocalAnimeItemTap(item as LocalAnimeItem),
+                        onItemTap: (item) => _onLibraryAnimeItemTap(
+                          (item as LocalAnimeItem).animeId,
+                        ),
                       )),
             ],
           );
@@ -567,6 +582,8 @@ extension DashboardHomePageSectionsBuild on _DashboardHomePageState {
   }
 
   Widget _buildMediaCard(dynamic item, Function(dynamic) onItemTap) {
+    final isQuark = item is WatchHistoryItem &&
+        MediaSourceUtils.isQuarkPath(item.filePath);
     String name = '';
     String imageUrl = '';
     String uniqueId = '';
@@ -611,7 +628,7 @@ extension DashboardHomePageSectionsBuild on _DashboardHomePageState {
           : (item.episodeTitle ?? '未知动画');
       uniqueId = 'history_${item.animeId ?? 0}_${item.filePath.hashCode}';
       imageUrl = item.thumbnailPath ?? '';
-      sourceLabel = '本地';
+      sourceLabel = isQuark ? '夸克' : '本地';
       // 观看历史如果有animeId也可以尝试获取简介
       if (_isValidAnimeId(item.animeId)) {
         detailFuture = _animeDetailsFuture(item.animeId!);
@@ -658,7 +675,7 @@ extension DashboardHomePageSectionsBuild on _DashboardHomePageState {
         ? HorizontalAnimeCard.detailedCardHeight
         : HorizontalAnimeCard.compactCardHeight;
 
-    Widget buildCard(String? summary, {String? progress}) {
+    Widget buildCard(String? summary, {String? progress, String? fallbackImage}) {
       final onTap = () => onItemTap(item);
       final card = SizedBox(
         width: cardWidth,
@@ -666,7 +683,7 @@ extension DashboardHomePageSectionsBuild on _DashboardHomePageState {
         child: HorizontalAnimeCard(
           key: ValueKey(uniqueId),
           title: name,
-          imageUrl: imageUrl,
+          imageUrl: imageUrl.isNotEmpty ? imageUrl : (fallbackImage ?? ''),
           onTap: onTap,
           source: sourceLabel,
           rating: rating,
@@ -700,7 +717,11 @@ extension DashboardHomePageSectionsBuild on _DashboardHomePageState {
               asyncProgress = _getWatchProgressForDashboard(item);
             }
           }
-          return buildCard(asyncSummary, progress: asyncProgress);
+          return buildCard(
+            asyncSummary,
+            progress: asyncProgress,
+            fallbackImage: isQuark ? snapshot.data?.imageUrl : null,
+          );
         },
       );
     }

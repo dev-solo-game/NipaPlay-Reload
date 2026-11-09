@@ -54,6 +54,15 @@ class MediaIdentityResolver {
       );
     }
 
+    final quark = MediaSourceUtils.parseQuarkPath(videoPath);
+    if (quark != null && quark.fid.isNotEmpty) {
+      return MediaIdentity.object(
+        source: 'quark',
+        sourceId: 'default',
+        objectId: quark.fid,
+      );
+    }
+
     final uri = Uri.tryParse(videoPath);
     if (uri != null && (uri.scheme == 'http' || uri.scheme == 'https')) {
       final queryParts =

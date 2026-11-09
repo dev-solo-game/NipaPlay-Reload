@@ -90,20 +90,23 @@ class _QuarkContentState extends State<_QuarkContent>
 
   void _startPolling() {
     _pollTimer?.cancel();
+    var polling = false;
     _pollTimer = Timer.periodic(const Duration(milliseconds: 1800), (timer) async {
       if (_qrToken == null || !mounted) {
         timer.cancel();
         return;
       }
+      if (polling) return;
 
+      polling = true;
       try {
         final status = await QuarkService.instance.client.pollQrCode(_qrToken!);
-        if (!mounted) return;
+        if (!mounted || !timer.isActive) return;
 
         if (status.isSuccess && status.cookie != null) {
           timer.cancel();
           setState(() {
-            _scanStatusText = '登录成功，正在加载网盘空间...';
+            _scanStatusText = '已扫码，正在验证网盘登录...';
           });
           await QuarkService.instance.loginWithCookie(status.cookie!);
           if (mounted) {
@@ -121,7 +124,11 @@ class _QuarkContentState extends State<_QuarkContent>
           });
         }
       } catch (e) {
-        debugPrint('夸克轮询异常: $e');
+        if (mounted && identical(_pollTimer, timer)) {
+          setState(() => _scanStatusText = _loginErrorMessage(e));
+        }
+      } finally {
+        polling = false;
       }
     });
   }
@@ -130,11 +137,6 @@ class _QuarkContentState extends State<_QuarkContent>
     final cookie = _cookieController.text.trim();
     if (cookie.isEmpty) {
       BlurSnackBar.show(context, '请输入 Cookie');
-      return;
-    }
-
-    if (!cookie.contains('__pus')) {
-      BlurSnackBar.show(context, 'Cookie 格式不完整，需包含 __pus 凭证');
       return;
     }
 
@@ -147,11 +149,16 @@ class _QuarkContentState extends State<_QuarkContent>
       }
     } catch (e) {
       if (mounted) {
-        BlurSnackBar.show(context, '登录失败: $e');
+        BlurSnackBar.show(context, _loginErrorMessage(e));
       }
     } finally {
       if (mounted) setState(() => _isManualLoading = false);
     }
+  }
+
+  String _loginErrorMessage(Object error) {
+    if (error is StateError) return error.message;
+    return '暂时无法验证夸克网盘登录，请重试';
   }
 
   String _formatCapacity(int bytes) {

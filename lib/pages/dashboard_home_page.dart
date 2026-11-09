@@ -26,6 +26,7 @@ import 'package:nipaplay/services/quarterly_review_cache.dart';
 import 'package:nipaplay/utils/network_settings.dart';
 import 'package:nipaplay/services/dandanplay_service.dart';
 import 'package:nipaplay/services/scan_service.dart';
+import 'package:nipaplay/services/quark/quark_service.dart';
 import 'package:nipaplay/services/web_remote_access_service.dart';
 import 'package:nipaplay/services/random_recommendation_service.dart';
 import 'package:nipaplay/services/trending_bangumi_service.dart';
@@ -70,6 +71,8 @@ import 'package:nipaplay/app/app_display_surface.dart';
 import 'package:nipaplay/app/app_display_surface_scope.dart';
 import 'package:nipaplay/app/app_size_class_scope.dart';
 import 'package:nipaplay/app/unified_home_components.dart';
+import 'package:nipaplay/app/unified_media_library_sections.dart';
+import 'package:nipaplay/media_library/media_collection_detail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nipaplay/services/server_history_sync_service.dart';
 import 'package:nipaplay/models/shared_remote_library.dart';
@@ -204,6 +207,11 @@ class _DashboardHomePageState extends State<DashboardHomePage>
   // 本地媒体库数据 - 使用番组信息而不是观看历史
   List<LocalAnimeItem> _localAnimeItems = [];
 
+  List<WatchHistoryItem> _recentQuarkItems() => mediaLibraryLatestItemsByAnime(
+        context.watch<WatchHistoryProvider>().quarkLibraryHistory,
+        UnifiedMediaLibrarySource.quark,
+      ).take(25).toList(growable: false);
+
   // 今日新番数据
   List<BangumiAnime> _todayAnimes = [];
   bool _isLoadingTodayAnimes = false;
@@ -278,6 +286,7 @@ class _DashboardHomePageState extends State<DashboardHomePage>
   final ScrollController _continueWatchingScrollController = ScrollController();
   final ScrollController _recentJellyfinScrollController = ScrollController();
   final ScrollController _recentEmbyScrollController = ScrollController();
+  final ScrollController _quarkLibraryScrollController = ScrollController();
 
   // 动态媒体库的ScrollController映射
   final Map<String, ScrollController> _jellyfinLibraryScrollControllers = {};
@@ -1060,6 +1069,7 @@ class _DashboardHomePageState extends State<DashboardHomePage>
       _continueWatchingScrollController.dispose();
       _recentJellyfinScrollController.dispose();
       _recentEmbyScrollController.dispose();
+      _quarkLibraryScrollController.dispose();
 
       // 销毁动态创建的ScrollController
       for (final controller in _jellyfinLibraryScrollControllers.values) {
