@@ -14,6 +14,8 @@ import 'package:nipaplay/services/quark/quark_service.dart';
 import 'package:nipaplay/utils/storage_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+const _testTmdbApiKey = '0123456789abcdef0123456789abcdef';
+
 QuarkCatalogItem _parse(String name, List<({String fid, String name})> dirs) {
   return QuarkCatalogItem.parse(
     fid: 'video',
@@ -110,7 +112,9 @@ void main() {
     final movie = _parse('例片 (2019).mkv', [(fid: 'movie', name: '例片 (2019)')]);
     final dio = Dio();
     addTearDown(dio.close);
+    final requests = <RequestOptions>[];
     dio.interceptors.add(InterceptorsWrapper(onRequest: (request, handler) {
+      requests.add(request);
       expect(request.uri.path, '/3/search/movie');
       expect(request.queryParameters['query'], '例片');
       expect(request.queryParameters['primary_release_year'], 2019);
@@ -130,10 +134,15 @@ void main() {
         ],
       }));
     }));
-    final found =
-        await QuarkMetadataScraper(dio: dio).lookup(movie, 'test-token');
-    expect(found,
-        (cover: 'https://image.tmdb.org/t/p/w500/right.jpg', summary: '简介'));
+    final scraper = QuarkMetadataScraper(dio: dio);
+    const expected =
+        (cover: 'https://image.tmdb.org/t/p/w500/right.jpg', summary: '简介');
+    expect(await scraper.lookup(movie, 'test-token'), expected);
+    expect(await scraper.lookup(movie, _testTmdbApiKey), expected);
+    expect(requests[0].headers['Authorization'], 'Bearer test-token');
+    expect(requests[0].queryParameters, isNot(contains('api_key')));
+    expect(requests[1].headers, isNot(contains('Authorization')));
+    expect(requests[1].queryParameters['api_key'], _testTmdbApiKey);
   });
 
   test('catalog snapshots persist without creating viewing history rows',
@@ -228,9 +237,30 @@ void main() {
       }));
     }));
     final metadataPaths = <String>[];
+    var rejectTmdb = true;
     metadata.interceptors
         .add(InterceptorsWrapper(onRequest: (request, handler) {
       metadataPaths.add(request.uri.path);
+      if (request.uri.path == '/3/search/tv') {
+        if (rejectTmdb) {
+          handler.reject(DioException.badResponse(
+            statusCode: 401,
+            requestOptions: request,
+            response: Response(requestOptions: request, statusCode: 401),
+          ));
+        } else {
+          handler.resolve(Response(requestOptions: request, data: {
+            'results': [
+              {
+                'name': '例剧',
+                'first_air_date': '2024-01-01',
+                'poster_path': '/show.jpg',
+              },
+            ],
+          }));
+        }
+        return;
+      }
       handler.resolve(Response(requestOptions: request, statusCode: 200, data: {
         'data': [
           {'name_cn': '例剧', 'date': '2024-01-01', 'summary': '作品简介'},
@@ -313,6 +343,25 @@ void main() {
     expect(restored.scanRequestMilliseconds, 725);
     expect(restored.indexedHistory.single.filePath, item.filePath);
     expect(restored.detailForWork(item.animeId)?.summary, '作品简介');
+
+    final directoriesBeforeScraping = drivePages.length;
+    await service.setTmdbToken(_testTmdbApiKey);
+    await service.scrapeMountMetadata(mount);
+    final failed = service.metadataProgressFor(mount.id)!;
+    expect((failed.total, failed.completed, failed.matched, failed.failed),
+        (1, 1, 0, 1));
+    expect(failed.error, contains('HTTP 401'));
+    expect(failed.error, isNot(contains(_testTmdbApiKey)));
+
+    rejectTmdb = false;
+    await service.scrapeMountMetadata(mount);
+    final scraped = service.metadataProgressFor(mount.id)!;
+    expect((scraped.total, scraped.matched, scraped.unmatched, scraped.failed),
+        (1, 1, 0, 0));
+    expect(scraped.error, isNull);
+    expect(service.detailForWork(item.animeId)?.imageUrl,
+        'https://image.tmdb.org/t/p/w500/show.jpg');
+    expect(drivePages, hasLength(directoriesBeforeScraping));
     await Future<void>.delayed(Duration.zero);
   });
 }

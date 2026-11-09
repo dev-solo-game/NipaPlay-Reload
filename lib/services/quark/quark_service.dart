@@ -31,6 +31,24 @@ class _QuarkScanTraversal {
   final startedAt = DateTime.now();
 }
 
+class QuarkMetadataProgress {
+  const QuarkMetadataProgress({
+    required this.total,
+    required this.matched,
+    required this.unmatched,
+    required this.failed,
+    this.error,
+  });
+
+  final int total;
+  final int matched;
+  final int unmatched;
+  final int failed;
+  final String? error;
+
+  int get completed => matched + unmatched + failed;
+}
+
 /// 夸克网盘业务逻辑服务单例
 class QuarkService extends ChangeNotifier {
   static const String _accountPrefsKey = 'quark_saved_account';
@@ -88,6 +106,7 @@ class QuarkService extends ChangeNotifier {
   final QuarkScanPacer _metadataPacer;
   final QuarkMetadataScraper _metadataScraper;
   final _metadata = <String, QuarkMetadataCacheEntry>{};
+  final _metadataProgress = <String, QuarkMetadataProgress>{};
   final _workDetails = <int, BangumiAnime>{};
   String _tmdbToken = '';
   bool get hasTmdbToken => _tmdbToken.isNotEmpty;
@@ -98,6 +117,10 @@ class QuarkService extends ChangeNotifier {
   List<WatchHistoryItem> _indexedHistory = const [];
   List<WatchHistoryItem> get indexedHistory => _indexedHistory;
   bool get hasCatalog => _catalogByMount.isNotEmpty;
+  bool hasIndexedVideos(String mountId) =>
+      _catalogByMount[mountId]?.isNotEmpty ?? false;
+  QuarkMetadataProgress? metadataProgressFor(String mountId) =>
+      _metadataProgress[mountId];
   final _autoAttempts = <String, DateTime>{};
   int _autoScanHours = 0;
   int get autoScanHours => _autoScanHours;
@@ -239,6 +262,7 @@ class QuarkService extends ChangeNotifier {
     _currentAccount = null;
     _catalogAccount = null;
     _catalogByMount.clear();
+    _metadataProgress.clear();
     _publishCatalog();
     _scheduleAutoScan();
     _urlCache.clear();
@@ -261,6 +285,7 @@ class QuarkService extends ChangeNotifier {
     for (final folder in _mountFolders.where((folder) => folder.fid == fid)) {
       if (_pausedScan?.mountId == folder.id) _pausedScan = null;
       _catalogByMount.remove(folder.id);
+      _metadataProgress.remove(folder.id);
       _autoAttempts.remove(folder.id);
     }
     _mountFolders.removeWhere((item) => item.fid == fid);
@@ -377,6 +402,28 @@ class QuarkService extends ChangeNotifier {
   String _scanningStatus = '';
   String get scanningStatus => _scanningStatus;
 
+  void _checkMountedFolder(String mountId, int generation) {
+    _checkSession(generation);
+    if (!_mountFolders.any((folder) => folder.id == mountId)) {
+      throw StateError('扫描目录已解除挂载');
+    }
+  }
+
+  void _startMountTask(String mountId, String status) {
+    _scanningFolderId = mountId;
+    _metadataProgress.remove(mountId);
+    _scheduleAutoScan();
+    _scanningStatus = status;
+    notifyListeners();
+  }
+
+  void _finishMountTask() {
+    _scanningFolderId = null;
+    _scanningStatus = '';
+    _scheduleAutoScan();
+    notifyListeners();
+  }
+
   Future<void> setAutoScanHours(int hours) async {
     if (!autoScanIntervals.contains(hours)) throw ArgumentError.value(hours);
     final prefs = await SharedPreferences.getInstance();
@@ -407,6 +454,7 @@ class QuarkService extends ChangeNotifier {
       await prefs.setString(_tmdbTokenKey, normalized);
     }
     _tmdbToken = normalized;
+    _metadataProgress.clear();
     _publishCatalog();
     notifyListeners();
   }
@@ -472,6 +520,7 @@ class QuarkService extends ChangeNotifier {
       ..clear()
       ..addEntries(stored.entries.where(
           (entry) => _mountFolders.any((folder) => folder.id == entry.key)));
+    _metadataProgress.clear();
     _publishCatalog();
   }
 
@@ -531,48 +580,128 @@ class QuarkService extends ChangeNotifier {
     catalogRevision.value++;
   }
 
+  static bool _hasWorkMetadata(QuarkWorkMetadata? metadata) =>
+      metadata != null &&
+      (metadata.cover.trim().isNotEmpty || metadata.summary.trim().isNotEmpty);
+
+  Future<void> scrapeMountMetadata(QuarkMountFolder folder) async {
+    if (!isLoggedIn) throw StateError('未登录夸克网盘');
+    if (isScanning) throw StateError('已有扫描或刮削任务正在进行中');
+    final generation = _sessionGeneration;
+    void checkScan() => _checkMountedFolder(folder.id, generation);
+    checkScan();
+    final items = _catalogByMount[folder.id];
+    if (items == null || items.isEmpty) throw StateError('请先扫描挂载目录');
+
+    _startMountTask(folder.id, '正在准备刮削 ${folder.name}');
+    try {
+      await _scrapeMetadata(folder.id, items, checkScan);
+    } finally {
+      _finishMountTask();
+    }
+  }
+
   Future<int> _scrapeMetadata(
-      List<QuarkCatalogItem> items, void Function() checkScan) async {
+    String mountId,
+    List<QuarkCatalogItem> items,
+    void Function() checkScan,
+  ) async {
     final token = _tmdbToken;
+    final source = token.isEmpty ? 'Bangumi' : 'TMDB';
     final uniqueWorks = <String, QuarkCatalogItem>{};
     for (final item in items) {
       uniqueWorks.putIfAbsent(
           QuarkMetadataScraper.keyFor(item, useTmdb: token.isNotEmpty),
           () => item);
     }
+    var matched = 0;
+    var unmatched = 0;
+    var failed = 0;
     var updated = 0;
-    for (final work in uniqueWorks.entries) {
-      checkScan();
-      if (_tmdbToken != token) break;
-      final cached = _metadata[work.key];
-      final ttl = Duration(days: cached?.metadata == null ? 7 : 30);
-      if (cached != null &&
-          DateTime.now().millisecondsSinceEpoch - cached.checkedAt <
-              ttl.inMilliseconds) {
-        continue;
-      }
-      _scanningStatus = '正在补充作品资料：${work.value.displayTitle}';
+    String? failure;
+    void report() {
+      _metadataProgress[mountId] = QuarkMetadataProgress(
+        total: uniqueWorks.length,
+        matched: matched,
+        unmatched: unmatched,
+        failed: failed,
+        error: failure,
+      );
       notifyListeners();
+    }
+
+    final pending = <MapEntry<String, QuarkCatalogItem>>[];
+    final now = DateTime.now().millisecondsSinceEpoch;
+    for (final work in uniqueWorks.entries) {
+      final cached = _metadata[work.key];
+      final hasDetails = _hasWorkMetadata(cached?.metadata);
+      final ttl = Duration(days: hasDetails ? 30 : 7);
+      if (cached != null &&
+          now - cached.checkedAt < ttl.inMilliseconds) {
+        if (hasDetails) {
+          matched++;
+        } else {
+          unmatched++;
+        }
+      } else {
+        pending.add(work);
+      }
+    }
+    for (final work in pending) {
+      checkScan();
+      if (_tmdbToken != token) return updated;
+      _scanningStatus = '正在刮削 $source · ${work.value.displayTitle}';
+      report();
       await _metadataPacer.waitForTurn();
       checkScan();
-      if (_tmdbToken != token) break;
+      if (_tmdbToken != token) return updated;
       try {
-        final result = await _metadataScraper.lookup(work.value, token);
+        final response = await _metadataScraper.lookup(work.value, token);
         checkScan();
+        if (_tmdbToken != token) return updated;
+        final result = _hasWorkMetadata(response) ? response : null;
+        final previous = _metadata[work.key]?.metadata;
         final entry = (
           checkedAt: DateTime.now().millisecondsSinceEpoch,
-          metadata: result ?? cached?.metadata
+          metadata: result ?? (_hasWorkMetadata(previous) ? previous : null),
         );
         await _catalogStore.saveMetadata(work.key, entry);
-        _metadata[work.key] = entry;
-        if (result != null && ++updated % 10 == 0) _publishCatalog();
-      } catch (error) {
         checkScan();
-        debugPrint('夸克作品资料查询已暂停 (${error.runtimeType})');
+        if (_tmdbToken != token) return updated;
+        _metadata[work.key] = entry;
+        if (entry.metadata != null) {
+          matched++;
+        } else {
+          unmatched++;
+        }
+        if (result != null) {
+          updated++;
+          if (updated == 1 || updated % 10 == 0) _publishCatalog();
+        }
+      } on DioException catch (error) {
+        checkScan();
+        if (_tmdbToken != token) return updated;
+        failed++;
+        final status = error.response?.statusCode;
+        failure = switch (status) {
+          401 || 403 when token.isNotEmpty =>
+            'TMDB 认证失败（HTTP $status），请检查 API Key 或读取令牌',
+          429 => '$source 请求频繁（HTTP 429），请稍后重试',
+          null => '$source 连接失败或超时，请检查网络',
+          _ => '$source 查询失败（HTTP $status）',
+        };
+        // Authentication, rate limits and connectivity can affect the entire batch.
+        if (status != 404 && status != 422) break;
+      } catch (_) {
+        checkScan();
+        if (_tmdbToken != token) return updated;
+        failed++;
+        failure = '处理作品资料失败，请重试';
         break;
       }
     }
-    if (updated > 0) _publishCatalog();
+    if (updated > 1 && updated % 10 != 0) _publishCatalog();
+    report();
     return updated;
   }
 
@@ -604,12 +733,7 @@ class QuarkService extends ChangeNotifier {
     var hasUnpublishedChanges =
         entries.values.any((item) => !identical(existing[item.fid], item));
 
-    void checkScan() {
-      _checkSession(generation);
-      if (!_mountFolders.any((mounted) => mounted.id == folder.id)) {
-        throw StateError('扫描目录已解除挂载');
-      }
-    }
+    void checkScan() => _checkMountedFolder(folder.id, generation);
 
     Future<void> persist(List<QuarkCatalogItem> items) async {
       checkScan();
@@ -619,11 +743,10 @@ class QuarkService extends ChangeNotifier {
       _publishCatalog();
     }
 
-    _scanningFolderId = folder.id;
-    _scheduleAutoScan();
-    _scanningStatus =
-        resuming ? '正在继续扫描 ${folder.name}' : '正在扫描 ${folder.name}';
-    notifyListeners();
+    _startMountTask(
+      folder.id,
+      resuming ? '正在继续扫描 ${folder.name}' : '正在扫描 ${folder.name}',
+    );
     try {
       while (directories.isNotEmpty) {
         final path = directories.last;
@@ -722,7 +845,7 @@ class QuarkService extends ChangeNotifier {
       await _persistMountFolders();
       checkScan();
       notifyListeners();
-      final enriched = await _scrapeMetadata(indexed, checkScan);
+      final enriched = await _scrapeMetadata(folder.id, indexed, checkScan);
       checkScan();
       return {
         'total': indexed.length,
@@ -751,10 +874,7 @@ class QuarkService extends ChangeNotifier {
       }
       rethrow;
     } finally {
-      _scanningFolderId = null;
-      _scanningStatus = '';
-      _scheduleAutoScan();
-      notifyListeners();
+      _finishMountTask();
     }
   }
 

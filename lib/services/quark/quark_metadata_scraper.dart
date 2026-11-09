@@ -18,6 +18,7 @@ class QuarkMetadataScraper {
             ));
 
   final Dio _dio;
+  static final _tmdbApiKey = RegExp(r'^[0-9a-fA-F]{32}$');
 
   static String _normalize(String title) =>
       title.toLowerCase().replaceAll(RegExp(r'[\s·・:：._\-]+'), '');
@@ -37,20 +38,24 @@ class QuarkMetadataScraper {
   }
 
   Future<QuarkWorkMetadata?> _lookupTmdb(
-      QuarkCatalogItem item, String token) async {
+      QuarkCatalogItem item, String credential) async {
     final isSeries = item.isSeries;
     final type = isSeries ? 'tv' : 'movie';
+    final isApiKey = _tmdbApiKey.hasMatch(credential);
     final response = await _dio.get<Map<String, dynamic>>(
       'https://api.themoviedb.org/3/search/$type',
       queryParameters: {
         'query': item.title,
         'language': 'zh-CN',
+        if (isApiKey) 'api_key': credential,
         if (item.year != null)
           (isSeries ? 'first_air_date_year' : 'primary_release_year'):
               item.year,
       },
       options: Options(
-          headers: {'Authorization': 'Bearer $token'}, followRedirects: false),
+        headers: {if (!isApiKey) 'Authorization': 'Bearer $credential'},
+        followRedirects: false,
+      ),
     );
     final candidate = _uniqueMatch(
       item,

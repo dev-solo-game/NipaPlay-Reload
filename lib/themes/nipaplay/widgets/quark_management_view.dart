@@ -93,6 +93,14 @@ class _QuarkManagementViewState extends State<QuarkManagementView> {
     }
   }
 
+  Future<void> _scrapeFolderMetadata(QuarkMountFolder folder) async {
+    try {
+      await QuarkService.instance.scrapeMountMetadata(folder);
+    } on StateError catch (error) {
+      if (mounted) BlurSnackBar.show(context, error.message);
+    }
+  }
+
   Future<void> _confirmRemoveFolder(QuarkMountFolder folder) async {
     final confirmed = await BlurDialog.show<bool>(
       context: context,
@@ -168,12 +176,14 @@ class _QuarkManagementViewState extends State<QuarkManagementView> {
           obscureText: true,
           autocorrect: false,
           enableSuggestions: false,
-          decoration: const InputDecoration(labelText: 'API 读取令牌'),
+          decoration: const InputDecoration(
+            labelText: 'API Key 或 API 读取令牌',
+          ),
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('取消')),
           if (QuarkService.instance.hasTmdbToken)
-            TextButton(onPressed: () => Navigator.pop(dialogContext, ''), child: const Text('清除令牌')),
+            TextButton(onPressed: () => Navigator.pop(dialogContext, ''), child: const Text('清除凭证')),
           TextButton(
             onPressed: () {
               final value = input.trim();
@@ -301,7 +311,7 @@ class _QuarkManagementViewState extends State<QuarkManagementView> {
             title: const Text('作品资料来源'),
             subtitle: Text(service.hasTmdbToken
                 ? 'TMDB · 通过片名和年份补充电影及电视剧资料'
-                : 'Bangumi 公开搜索 · 可配置 TMDB 读取令牌'),
+                : 'Bangumi 公开搜索 · 可配置 TMDB API Key 或读取令牌'),
             trailing: TextButton(onPressed: _configureTmdb, child: const Text('设置 TMDB')),
           ),
         ),
@@ -492,7 +502,9 @@ class _QuarkManagementViewState extends State<QuarkManagementView> {
     Color accentColor,
   ) {
     final subColor = theme.colorScheme.onSurface.withOpacity(0.65);
-    final isScanningThis = QuarkService.instance.scanningFolderId == folder.id;
+    final service = QuarkService.instance;
+    final isScanningThis = service.scanningFolderId == folder.id;
+    final metadata = service.metadataProgressFor(folder.id);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
@@ -540,7 +552,7 @@ class _QuarkManagementViewState extends State<QuarkManagementView> {
                           style: TextStyle(fontSize: 11, color: subColor.withOpacity(0.8)),
                         ),
                       ),
-                    if (isScanningThis && QuarkService.instance.scanningStatus.isNotEmpty)
+                    if (isScanningThis && service.scanningStatus.isNotEmpty)
                       Padding(
                         padding: const EdgeInsets.only(top: 4),
                         child: Row(
@@ -553,7 +565,7 @@ class _QuarkManagementViewState extends State<QuarkManagementView> {
                             const SizedBox(width: 6),
                             Expanded(
                               child: Text(
-                                QuarkService.instance.scanningStatus,
+                                service.scanningStatus,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(fontSize: 11, color: accentColor),
@@ -561,6 +573,39 @@ class _QuarkManagementViewState extends State<QuarkManagementView> {
                             ),
                           ],
                         ),
+                      ),
+                    if (metadata != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        '刮削 ${metadata.completed}/${metadata.total} 部'
+                        ' · 匹配 ${metadata.matched}'
+                        ' · 未匹配 ${metadata.unmatched}'
+                        ' · 失败 ${metadata.failed}',
+                        style: TextStyle(fontSize: 12, color: subColor),
+                      ),
+                      if (isScanningThis && metadata.total > 0)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: LinearProgressIndicator(
+                            value: metadata.completed / metadata.total,
+                            semanticsLabel: '作品资料刮削进度',
+                          ),
+                        ),
+                      if (metadata.error case final error?)
+                        Text(
+                          error,
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: theme.colorScheme.error,
+                          ),
+                        ),
+                    ],
+                    if (service.hasIndexedVideos(folder.id) && !isScanningThis)
+                      TextButton(
+                        onPressed: service.isScanning
+                            ? null
+                            : () => _scrapeFolderMetadata(folder),
+                        child: const Text('仅刮削资料'),
                       ),
                   ],
                 ),
