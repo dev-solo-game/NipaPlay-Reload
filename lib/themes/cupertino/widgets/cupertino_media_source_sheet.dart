@@ -108,6 +108,8 @@ class _MediaSourceIcon extends StatelessWidget {
         Icon(CupertinoIcons.cloud, size: 30, color: color),
       MediaSourceIconKind.smb =>
         Icon(CupertinoIcons.rectangle_3_offgrid, size: 30, color: color),
+      MediaSourceIconKind.quark =>
+        Icon(CupertinoIcons.cloud_download, size: 30, color: color),
     };
   }
 
@@ -136,4 +138,5 @@ Color _brandColor(MediaSourceIconKind kind) => switch (kind) {
       MediaSourceIconKind.emby => const Color(0xFF459C40),
       MediaSourceIconKind.webdav => const Color(0xFF438EC4),
       MediaSourceIconKind.smb => const Color(0xFF438F58),
+      MediaSourceIconKind.quark => const Color(0xFF007AFF),
     };

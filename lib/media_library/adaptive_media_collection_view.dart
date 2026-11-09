@@ -98,6 +98,7 @@ class LibraryNewContentTracker {
       UnifiedMediaLibrarySource.local => 'local',
       UnifiedMediaLibrarySource.webdav => 'webdav',
       UnifiedMediaLibrarySource.smb => 'smb',
+      UnifiedMediaLibrarySource.quark => 'quark',
     };
   }
 
@@ -323,6 +324,7 @@ class LibraryOpenTimeStore {
       UnifiedMediaLibrarySource.local => 'local',
       UnifiedMediaLibrarySource.webdav => 'webdav',
       UnifiedMediaLibrarySource.smb => 'smb',
+      UnifiedMediaLibrarySource.quark => 'quark',
     };
   }
 
@@ -495,6 +497,7 @@ class _AdaptiveMediaCollectionViewState
         UnifiedMediaLibrarySource.local => '本地媒体库',
         UnifiedMediaLibrarySource.webdav => 'WebDAV媒体库',
         UnifiedMediaLibrarySource.smb => 'SMB媒体库',
+        UnifiedMediaLibrarySource.quark => '夸克媒体库',
       };
 
   @override

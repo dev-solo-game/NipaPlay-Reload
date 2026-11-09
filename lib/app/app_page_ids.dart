@@ -58,4 +58,6 @@ class MediaLibrarySectionIds {
   static const String dandanplay = 'dandanplay';
   static const String jellyfin = 'jellyfin';
   static const String emby = 'emby';
+  static const String quark = 'quark_library';
+  static const String quarkManagement = 'quark_management';
 }

@@ -1,3 +1,5 @@
+import 'package:nipaplay/services/quark/quark_service.dart';
+import 'package:nipaplay/services/quark/quark_proxy_service.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -117,6 +119,8 @@ class _AdaptiveMediaLibraryPageState extends State<AdaptiveMediaLibraryPage> {
     await Future.wait([
       WebDAVService.instance.initialize(),
       SMBService.instance.initialize(),
+      QuarkService.instance.initialize(),
+      QuarkProxyService.instance.initialize(),
     ]);
     if (!mounted) return;
     setState(() => _connectionsInitialized = true);
@@ -253,6 +257,12 @@ class _AdaptiveMediaLibraryPageState extends State<AdaptiveMediaLibraryPage> {
               ? sharedProvider.smbConnections.isNotEmpty
               : _connectionsInitialized &&
                   SMBService.instance.connections.isNotEmpty,
+          showQuarkLibrary: watchHistoryProvider.isLoaded &&
+              mediaLibraryHasItemsForSource(
+                watchHistoryProvider.history,
+                UnifiedMediaLibrarySource.quark,
+              ),
+          showQuarkManagement: QuarkService.instance.isLoggedIn,
           showShared: sharedProvider.hasReachableActiveHost || kIsWeb,
           showDandanplay: dandanProvider.isConnected,
           showJellyfin: jellyfinProvider.isConnected,
@@ -315,6 +325,12 @@ class _AdaptiveMediaLibraryPageState extends State<AdaptiveMediaLibraryPage> {
                   ? sharedProvider.smbConnections.isNotEmpty
                   : _connectionsInitialized &&
                       SMBService.instance.connections.isNotEmpty,
+              showQuarkLibrary: watchHistoryProvider.isLoaded &&
+                  mediaLibraryHasItemsForSource(
+                    watchHistoryProvider.history,
+                    UnifiedMediaLibrarySource.quark,
+                  ),
+              showQuarkManagement: QuarkService.instance.isLoggedIn,
               showShared: sharedProvider.hasReachableActiveHost || kIsWeb,
               showDandanplay: dandanProvider.isConnected,
               showJellyfin: jellyfinProvider.isConnected,
@@ -482,7 +498,8 @@ class _AdaptiveMediaLibraryPageState extends State<AdaptiveMediaLibraryPage> {
           !filePath.startsWith('http://') &&
           !filePath.startsWith('https://') &&
           !filePath.startsWith('webdav://') &&
-          !filePath.startsWith('smb://')) {
+          !filePath.startsWith('smb://') &&
+          !filePath.startsWith('quark://')) {
         var file = File(filePath);
         if (!file.existsSync() && Platform.isIOS) {
           final alternate = filePath.startsWith('/private')

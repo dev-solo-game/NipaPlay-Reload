@@ -3042,7 +3042,8 @@ class _AnimeDetailPageState extends State<AnimeDetailPage>
         lowerPath.startsWith('jellyfin://') ||
         lowerPath.startsWith('emby://') ||
         MediaSourceUtils.isWebDavPath(filePath) ||
-        MediaSourceUtils.isSmbPath(filePath);
+        MediaSourceUtils.isSmbPath(filePath) ||
+        MediaSourceUtils.isQuarkPath(filePath);
   }
 
   bool _hasReliableLocalDuration(WatchHistoryItem? history) {

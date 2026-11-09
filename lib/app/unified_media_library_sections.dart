@@ -15,6 +15,7 @@ enum UnifiedMediaLibrarySource {
   local,
   webdav,
   smb,
+  quark,
 }
 
 enum UnifiedMediaLibraryServer {
@@ -47,6 +48,8 @@ class MediaLibraryAvailability {
     required this.showWebDAVManagement,
     required this.showSMBLibrary,
     required this.showSMBManagement,
+    this.showQuarkLibrary = false,
+    this.showQuarkManagement = false,
     required this.showShared,
     required this.showDandanplay,
     required this.showJellyfin,
@@ -58,6 +61,8 @@ class MediaLibraryAvailability {
   final bool showWebDAVManagement;
   final bool showSMBLibrary;
   final bool showSMBManagement;
+  final bool showQuarkLibrary;
+  final bool showQuarkManagement;
   final bool showShared;
   final bool showDandanplay;
   final bool showJellyfin;
@@ -122,6 +127,22 @@ List<UnifiedMediaLibrarySection> buildUnifiedMediaLibrarySections(
         phoneSymbol: 'externaldrive.fill',
         contentType: UnifiedMediaLibraryContentType.libraryManagement,
         source: UnifiedMediaLibrarySource.smb,
+      ),
+    if (availability.showQuarkLibrary)
+      const UnifiedMediaLibrarySection(
+        id: MediaLibrarySectionIds.quark,
+        label: '夸克媒体库',
+        phoneSymbol: 'cloud.rainbow.half',
+        contentType: UnifiedMediaLibraryContentType.mediaCollection,
+        source: UnifiedMediaLibrarySource.quark,
+      ),
+    if (availability.showQuarkManagement)
+      const UnifiedMediaLibrarySection(
+        id: MediaLibrarySectionIds.quarkManagement,
+        label: '夸克网盘管理',
+        phoneSymbol: 'externaldrive.badge.icloud',
+        contentType: UnifiedMediaLibraryContentType.libraryManagement,
+        source: UnifiedMediaLibrarySource.quark,
       ),
     if (availability.showShared) ...[
       const UnifiedMediaLibrarySection(
@@ -216,14 +237,17 @@ bool mediaLibraryItemMatchesSource(
   final path = item.filePath;
   final isWebDAV = MediaSourceUtils.isWebDavPath(path);
   final isSMB = MediaSourceUtils.isSmbPath(path);
+  final isQuark = MediaSourceUtils.isQuarkPath(path);
 
   return switch (source) {
     UnifiedMediaLibrarySource.webdav => isWebDAV,
     UnifiedMediaLibrarySource.smb => isSMB,
+    UnifiedMediaLibrarySource.quark => isQuark,
     UnifiedMediaLibrarySource.local => !path.startsWith('jellyfin://') &&
         !path.startsWith('emby://') &&
         !isWebDAV &&
         !isSMB &&
+        !isQuark &&
         !path.contains('/api/media/local/share/'),
   };
 }

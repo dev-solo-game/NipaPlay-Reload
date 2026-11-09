@@ -1,3 +1,9 @@
+import 'dart:async';
+import 'package:nipaplay/services/quark/quark_service.dart';
+import 'package:nipaplay/services/quark/quark_proxy_service.dart';
+import 'package:nipaplay/themes/nipaplay/widgets/quark_connection_dialog.dart';
+import 'package:nipaplay/themes/nipaplay/widgets/quark_folder_picker_dialog.dart';
+import 'package:nipaplay/providers/watch_history_provider.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:path/path.dart' as path;
@@ -50,6 +56,8 @@ Future<AdaptiveAddMediaResult?> showAdaptiveAddMediaFlow(
       return _addWebDav(context);
     case 'smb':
       return _addSmb(context);
+    case 'quark':
+      return _addQuark(context);
     case 'jellyfin':
       return _configureNetworkServer(context, MediaServerType.jellyfin);
     case 'emby':
@@ -207,4 +215,41 @@ void _showMessage(BuildContext context, String message) {
     return;
   }
   BlurSnackBar.show(context, message);
+}
+
+
+Future<AdaptiveAddMediaResult?> _addQuark(BuildContext context) async {
+  await QuarkService.instance.initialize();
+  await QuarkProxyService.instance.initialize();
+  if (!context.mounted) return null;
+
+  if (!QuarkService.instance.isLoggedIn) {
+    final loginResult = await QuarkConnectionDialog.show(context);
+    if (!context.mounted || loginResult != true || !QuarkService.instance.isLoggedIn) {
+      return null;
+    }
+  }
+
+  final mountFolder = await QuarkFolderPickerDialog.show(context);
+  if (!context.mounted || mountFolder == null) {
+    return const AdaptiveAddMediaResult(
+      sectionId: MediaLibrarySectionIds.quarkManagement,
+      connectionsChanged: true,
+    );
+  }
+
+  await QuarkService.instance.addMountFolder(mountFolder);
+  if (context.mounted) {
+    _showMessage(context, '已挂载目录：${mountFolder.name}，正在后台扫描刮削...');
+    unawaited(QuarkService.instance.scanMountFolder(mountFolder).then((_) {
+      if (context.mounted) {
+        context.read<WatchHistoryProvider>().refresh();
+      }
+    }));
+  }
+
+  return const AdaptiveAddMediaResult(
+    sectionId: MediaLibrarySectionIds.quarkManagement,
+    connectionsChanged: true,
+  );
 }

@@ -212,6 +212,8 @@ class MediaServerSelectionSheet extends StatelessWidget {
         Icon(Icons.cloud_outlined, size: 30, color: color),
       MediaSourceIconKind.smb =>
         Icon(Icons.lan_outlined, size: 30, color: color),
+      MediaSourceIconKind.quark =>
+        Icon(Icons.cloud_circle_outlined, size: 30, color: color),
     };
   }
 
@@ -223,5 +225,6 @@ class MediaServerSelectionSheet extends StatelessWidget {
         MediaSourceIconKind.emby => const Color(0xFF52B54B),
         MediaSourceIconKind.webdav => const Color(0xFF6AB7FF),
         MediaSourceIconKind.smb => const Color(0xFF5CBF73),
+        MediaSourceIconKind.quark => const Color(0xFF007AFF),
       };
 }

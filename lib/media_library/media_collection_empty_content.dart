@@ -22,6 +22,7 @@ MediaCollectionEmptyContent mediaCollectionEmptyContent(
     UnifiedMediaLibrarySource.local => '观看或扫描识别后的动画会显示在这里。',
     UnifiedMediaLibrarySource.webdav => '完成 WebDAV 刮削后，动画会显示在这里。',
     UnifiedMediaLibrarySource.smb => '完成 SMB 刮削后，动画会显示在这里。',
+    UnifiedMediaLibrarySource.quark => '完成夸克网盘刮削后，动画会显示在这里。',
   };
 
   return MediaCollectionEmptyContent(

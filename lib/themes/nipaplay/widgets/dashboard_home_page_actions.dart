@@ -240,7 +240,8 @@ extension DashboardHomePageActions on _DashboardHomePageState {
         isJellyfinProtocol ||
         isEmbyProtocol ||
         MediaSourceUtils.isWebDavPath(currentItem.filePath) ||
-        MediaSourceUtils.isSmbPath(currentItem.filePath)) {
+        MediaSourceUtils.isSmbPath(currentItem.filePath) ||
+        MediaSourceUtils.isQuarkPath(currentItem.filePath)) {
       fileExists = true;
       if (isJellyfinProtocol) {
         try {

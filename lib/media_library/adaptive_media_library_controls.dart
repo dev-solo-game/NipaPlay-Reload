@@ -1,3 +1,4 @@
+import 'package:nipaplay/themes/nipaplay/widgets/quark_management_view.dart';
 import 'package:flutter/cupertino.dart' as cupertino;
 import 'package:flutter/material.dart' as material;
 import 'package:flutter/services.dart' show KeyDownEvent, LogicalKeyboardKey;
@@ -412,12 +413,15 @@ class _UnifiedMediaLibrarySectionContent extends material.StatelessWidget {
     return switch (section.contentType) {
       UnifiedMediaLibraryContentType.mediaCollection =>
         const material.SizedBox.shrink(),
-      UnifiedMediaLibraryContentType.libraryManagement => LibraryManagementTab(
-          section: _desktopManagementSource(section.source!),
-          onPlayEpisode: onPlayEpisode,
-          viewMode: managementViewMode,
-          onViewModeChanged: onManagementViewModeChanged,
-        ),
+      UnifiedMediaLibraryContentType.libraryManagement =>
+        section.source == UnifiedMediaLibrarySource.quark
+            ? QuarkManagementView(onPlayEpisode: onPlayEpisode)
+            : LibraryManagementTab(
+                section: _desktopManagementSource(section.source!),
+                onPlayEpisode: onPlayEpisode,
+                viewMode: managementViewMode,
+                onViewModeChanged: onManagementViewModeChanged,
+              ),
       UnifiedMediaLibraryContentType.sharedCollection =>
         SharedRemoteLibraryView(
           mode: SharedRemoteViewMode.mediaLibrary,
@@ -447,6 +451,7 @@ class _UnifiedMediaLibrarySectionContent extends material.StatelessWidget {
       UnifiedMediaLibrarySource.local => LibraryManagementSection.local,
       UnifiedMediaLibrarySource.webdav => LibraryManagementSection.webdav,
       UnifiedMediaLibrarySource.smb => LibraryManagementSection.smb,
+      UnifiedMediaLibrarySource.quark => LibraryManagementSection.local,
     };
   }
 }
@@ -1250,5 +1255,6 @@ material.IconData _mediaSourceIcon(MediaSourceIconKind kind) {
     MediaSourceIconKind.emby => material.Icons.video_library_rounded,
     MediaSourceIconKind.webdav => material.Icons.cloud_rounded,
     MediaSourceIconKind.smb => material.Icons.lan_rounded,
+    MediaSourceIconKind.quark => material.Icons.cloud_circle_rounded,
   };
 }

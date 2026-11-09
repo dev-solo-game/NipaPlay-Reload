@@ -835,6 +835,7 @@ extension DashboardHomePageDataLoading on _DashboardHomePageState {
                   !item.filePath.startsWith('emby://') &&
                   !MediaSourceUtils.isSmbPath(item.filePath) &&
                   !MediaSourceUtils.isWebDavPath(item.filePath) &&
+                  !MediaSourceUtils.isQuarkPath(item.filePath) &&
                   !item.isDandanplayRemote)
               .toList();
 

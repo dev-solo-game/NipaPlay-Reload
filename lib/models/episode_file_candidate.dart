@@ -16,6 +16,7 @@ class EpisodeFileCandidate {
     final path = history.filePath;
     if (MediaSourceUtils.isSmbPath(path)) return 'SMB';
     if (MediaSourceUtils.isWebDavPath(path)) return 'WebDAV';
+    if (MediaSourceUtils.isQuarkPath(path)) return '夸克网盘';
     if (path.startsWith('jellyfin://')) return 'Jellyfin';
     if (path.startsWith('emby://')) return 'Emby';
     if (history.isDandanplayRemote) return '弹弹play远程媒体库';
@@ -39,6 +40,10 @@ class EpisodeFileCandidate {
           WebDAVService.instance.resolveMediaPath(path)?.connection.name ??
               webDav.connectionName;
       return 'webdav://$name${_decode(webDav.relativePath)}';
+    }
+    final quark = MediaSourceUtils.parseQuarkPath(path);
+    if (quark != null) {
+      return 'quark://${quark.fileName.isNotEmpty ? quark.fileName : quark.fid}';
     }
     final smb = MediaSourceUtils.parseSmbMediaPath(path);
     if (smb != null) {

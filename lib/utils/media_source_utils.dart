@@ -3,6 +3,8 @@ import 'package:nipaplay/services/webdav_service.dart';
 import 'package:nipaplay/services/webdav_proxy_service.dart';
 import 'package:nipaplay/services/smb_service.dart';
 import 'package:nipaplay/services/smb_proxy_service.dart';
+import 'package:nipaplay/services/quark/quark_proxy_service.dart';
+import 'package:nipaplay/services/quark/quark_service.dart';
 
 class MediaSourceUtils {
   MediaSourceUtils._();
@@ -480,12 +482,58 @@ class MediaSourceUtils {
   }
 
   /// Resolve stable remote-library paths while leaving regular URLs alone.
+
+  static bool isQuarkPath(String filePath) {
+    if (filePath.isEmpty) return false;
+    final lower = filePath.toLowerCase();
+    if (lower.startsWith('quark://')) return true;
+    final uri = Uri.tryParse(filePath);
+    if (uri == null) return false;
+    final host = uri.host.toLowerCase();
+    if (host == '127.0.0.1' || host == 'localhost' || host == '::1') {
+      return uri.path.startsWith('/quark/');
+    }
+    return false;
+  }
+
+  static String buildQuarkPath(String fid, String fileName) {
+    final encodedName = Uri.encodeComponent(fileName);
+    return 'quark://$fid/$encodedName';
+  }
+
+  static ({String fid, String fileName})? parseQuarkPath(String filePath) {
+    if (!isQuarkPath(filePath)) return null;
+    final uri = Uri.tryParse(filePath);
+    if (uri == null) return null;
+    if (uri.scheme.toLowerCase() == 'quark') {
+      final fid = uri.host;
+      final pathSegments = uri.pathSegments;
+      final fileName = pathSegments.isNotEmpty ? Uri.decodeComponent(pathSegments.first) : '';
+      return (fid: fid, fileName: fileName);
+    }
+    final fid = uri.queryParameters['fid'] ?? '';
+    final name = uri.queryParameters['name'] ?? '';
+    return (fid: fid, fileName: name);
+  }
+
+  static String? resolveQuarkPathToUrl(String filePath) {
+    final parsed = parseQuarkPath(filePath);
+    if (parsed == null || parsed.fid.isEmpty) return null;
+    return QuarkProxyService.instance.buildStreamUrl(
+      parsed.fid,
+      fileName: parsed.fileName,
+    );
+  }
+
   static String? resolveRemotePathToUrl(String filePath) {
     if (isNewWebDavPath(filePath)) {
       return resolveWebDavPathToUrl(filePath);
     }
     if (isNewSmbPath(filePath)) {
       return resolveSmbPathToUrl(filePath);
+    }
+    if (isQuarkPath(filePath)) {
+      return resolveQuarkPathToUrl(filePath);
     }
     return filePath;
   }

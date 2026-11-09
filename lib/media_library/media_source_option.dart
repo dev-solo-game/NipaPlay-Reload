@@ -8,6 +8,7 @@ enum MediaSourceIconKind {
   emby,
   webdav,
   smb,
+  quark,
 }
 
 class MediaSourceOption {
@@ -83,6 +84,13 @@ const mediaSourceOptions = <MediaSourceOption>[
     subtitle: '添加 SMB 共享',
     category: MediaSourceCategory.fileShare,
     iconKind: MediaSourceIconKind.smb,
+  ),
+  MediaSourceOption(
+    id: 'quark',
+    title: '夸克网盘',
+    subtitle: '扫码登录或挂载夸克网盘目录',
+    category: MediaSourceCategory.fileShare,
+    iconKind: MediaSourceIconKind.quark,
   ),
 ];
 
