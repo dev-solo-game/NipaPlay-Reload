@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:nipaplay/models/quark/quark_account.dart';
 import 'package:nipaplay/services/quark/quark_service.dart';
 import 'package:nipaplay/themes/nipaplay/widgets/blur_dialog.dart';
@@ -35,6 +36,7 @@ class _QuarkContentState extends State<_QuarkContent>
   final TextEditingController _cookieController = TextEditingController();
 
   String? _qrUrl;
+  String? _directUrl;
   String? _qrToken;
   String _scanStatusText = '正在获取登录二维码...';
   bool _isQrLoading = true;
@@ -71,6 +73,7 @@ class _QuarkContentState extends State<_QuarkContent>
       setState(() {
         _qrToken = info['token'] as String;
         _qrUrl = info['qrUrl'] as String;
+        _directUrl = info['directUrl'] as String?;
         _isQrLoading = false;
         _scanStatusText = '请使用手机夸克 App 扫描二维码';
       });
@@ -193,7 +196,7 @@ class _QuarkContentState extends State<_QuarkContent>
           ),
           const SizedBox(height: 16),
           SizedBox(
-            height: 320,
+            height: 330,
             child: TabBarView(
               controller: _tabController,
               children: [
@@ -412,15 +415,24 @@ class _QuarkContentState extends State<_QuarkContent>
               child: Text(
                 _scanStatusText,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: isDark ? Colors.white70 : Colors.black87,
                 ),
                 textAlign: TextAlign.center,
               ),
             ),
+            if (_directUrl != null || _qrUrl != null)
+              IconButton(
+                icon: const Icon(Icons.copy_rounded, size: 18),
+                tooltip: '复制授权链接',
+                onPressed: () {
+                  Clipboard.setData(ClipboardData(text: _directUrl ?? _qrUrl!));
+                  BlurSnackBar.show(context, '授权链接已复制，可在手机夸克中打开');
+                },
+              ),
             IconButton(
-              icon: const Icon(Icons.refresh, size: 20),
+              icon: const Icon(Icons.refresh, size: 18),
               tooltip: '刷新二维码',
               onPressed: _loadQrCode,
             ),

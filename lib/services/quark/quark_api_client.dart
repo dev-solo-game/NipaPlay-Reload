@@ -112,17 +112,17 @@ class QuarkApiClient {
       final members = (data['data'] as Map?)?['members'] as Map?;
       final token = members?['token'] as String? ?? (data['data'] as Map?)?['token'] as String?;
       if (token != null && token.isNotEmpty) {
-        final query = Uri(queryParameters: {
-          'token': token,
-          'client_id': '532',
-          'ssb': 'weblogin',
-          'uc_param_str': '',
-          'uc_biz_str': 'S:custom|OPT:SAREA@0|OPT:IMMERSIVE@1|OPT:BACK_BTN_STYLE@0',
-        }).query;
-        final qrUrl = 'https://su.quark.cn/4_eMHBJ?$query';
+        // 官方标准 URL 参数拼接：
+        // 注意：uc_param_str 必须携带等号 (uc_param_str=)，否则阿里短链网关解析截断将丢失后面的 token 和 client_id
+        final encodedBiz = Uri.encodeComponent('S:custom|OPT:SAREA@0|OPT:IMMERSIVE@1|OPT:BACK_BTN_STYLE@0');
+        final queryStr = 'token=$token&client_id=532&ssb=weblogin&uc_param_str=&uc_biz_str=$encodedBiz';
+        final qrUrl = 'https://su.quark.cn/4_eMHBJ?$queryStr';
+        final directUrl = 'https://b.quark.cn/apps/DuJrlezmS/routes/EATJRLSvv?$queryStr';
+
         return {
           'token': token,
           'qrUrl': qrUrl,
+          'directUrl': directUrl,
           'expiresIn': 300,
         };
       }
@@ -164,26 +164,25 @@ class QuarkApiClient {
       }
     }
 
-    // 50004001 或 40001: 等待扫码中
+    // 官方状态 50004001: 等待扫码中
     if (status == 50004001 || status == 40001) {
-      return QuarkQrCodeStatus.waiting('请使用手机夸克 App 扫码');
+      return QuarkQrCodeStatus.waiting('请使用手机夸克 App 扫描二维码');
     }
 
-    // 40002 或 已扫码
+    // 已扫码待确认
     if (status == 40002 || message.contains('scanned') || message.contains('已扫码')) {
       return QuarkQrCodeStatus.scanned('已扫码，请在手机上点击确认');
     }
 
-    // 过期 / 失效
-    final failStatuses = [50004002, 50004003, 50004004, 40003, 40004];
-    if (failStatuses.contains(status) ||
+    // 官方状态 50004002: 二维码已过期
+    if (status == 50004002 ||
         message.contains('expired') ||
         message.contains('timeout') ||
-        message.contains('invalid')) {
-      return QuarkQrCodeStatus.expired('二维码已失效，请刷新');
+        message.contains('过期')) {
+      return QuarkQrCodeStatus.expired('二维码已失效，点击刷新');
     }
 
-    return QuarkQrCodeStatus.waiting('等待手机扫码确认...');
+    return QuarkQrCodeStatus.waiting('请使用手机夸克 App 扫描二维码');
   }
 
   /// 使用 ticket 换取并拼接 Cookie
