@@ -17,6 +17,7 @@ import 'package:nipaplay/themes/cupertino/widgets/player_menu/cupertino_subtitle
 import 'package:nipaplay/themes/cupertino/widgets/player_menu/cupertino_subtitle_tracks_pane.dart';
 import 'package:nipaplay/utils/app_accent_color.dart';
 import 'package:nipaplay/utils/video_player_state.dart';
+import 'package:nipaplay/themes/nipaplay/widgets/quark_quality_options.dart';
 import 'package:provider/provider.dart';
 
 /// Renders the canonical full player-menu pane inside a large-screen host.
@@ -100,6 +101,8 @@ class NipaplayLargeScreenPlayerMenuPaneHost extends StatelessWidget {
         return CupertinoPlaylistPane(videoState: videoState);
       case PlayerMenuPaneId.jellyfinQuality:
         return CupertinoJellyfinQualityPane(videoState: videoState);
+      case PlayerMenuPaneId.quarkQuality:
+        return QuarkQualityOptions(videoState: videoState, adaptive: true);
     }
   }
 }

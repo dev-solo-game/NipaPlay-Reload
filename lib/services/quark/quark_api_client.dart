@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:nipaplay/models/quark/quark_file.dart';
+import 'package:nipaplay/models/quark/quark_playback_info.dart';
 import 'package:uuid/uuid.dart';
 
 /// 扫码状态返回结果
@@ -374,6 +375,59 @@ class QuarkApiClient {
     return [];
   }
 
+  Future<QuarkPlaybackInfo> getPlaybackInfo({
+    required String cookie,
+    required String fid,
+  }) async {
+    String? videoAuthCookie;
+    final response = await _requestDrive(
+      '/file/v2/play',
+      cookie: cookie,
+      method: 'POST',
+      userAgent: downloadUserAgent,
+      body: {
+        'fid': fid,
+        'resolutions': 'low,normal,high,super,2k,4k',
+        'supports': 'fmp4_av,m3u8,dolby_vision',
+      },
+      onResponseHeaders: (headers) {
+        const prefix = 'Video-Auth=';
+        for (final header in headers['set-cookie'] ?? const <String>[]) {
+          final pair = header.split(';').first.trim();
+          if (pair.startsWith(prefix) && pair.length > prefix.length) {
+            videoAuthCookie = pair;
+            break;
+          }
+        }
+      },
+    );
+    final data = response['data'] as Map?;
+    final variants = <String, QuarkVideoVariant>{};
+    for (final item in (data?['video_list'] as List? ?? []).whereType<Map>()) {
+      final info = item['video_info'];
+      if (item['accessable'] == false || info is! Map) continue;
+      final resolution = item['resolution'];
+      final url = Uri.tryParse(info['url']?.toString() ?? '');
+      if (resolution is! String ||
+          resolution.isEmpty ||
+          url == null ||
+          url.scheme != 'https' ||
+          url.host.isEmpty) {
+        continue;
+      }
+      variants[resolution] = QuarkVideoVariant(
+        resolution: resolution,
+        url: url,
+        height: int.tryParse('${info['height']}'),
+      );
+    }
+    return QuarkPlaybackInfo(
+      variants: List.unmodifiable(variants.values),
+      defaultResolution: data?['default_resolution'] as String?,
+      videoAuthCookie: videoAuthCookie,
+    );
+  }
+
   /// 6. 获取文件临时下载直链
   Future<String> getDownloadUrl({
     required String cookie,
@@ -405,6 +459,7 @@ class QuarkApiClient {
     Map<String, dynamic>? body,
     String? userAgent,
     FutureOr<void> Function(String, String)? onCookieRefreshed,
+    void Function(Headers)? onResponseHeaders,
   }) async {
     final response = await _dio.request<dynamic>(
       '$baseDriveUrl$path',
@@ -451,6 +506,7 @@ class QuarkApiClient {
       final message = data is Map ? data['message'] : null;
       throw StateError('夸克网盘请求失败 ($path, HTTP $httpStatus)：${message ?? '未知错误'}');
     }
+    onResponseHeaders?.call(response.headers);
     return data;
   }
 

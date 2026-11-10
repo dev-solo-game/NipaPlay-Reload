@@ -9,6 +9,7 @@ import 'package:nipaplay/models/quark/quark_account.dart';
 import 'package:nipaplay/models/quark/quark_catalog_item.dart';
 import 'package:nipaplay/models/quark/quark_file.dart';
 import 'package:nipaplay/models/quark/quark_mount_folder.dart';
+import 'package:nipaplay/models/quark/quark_playback_info.dart';
 import 'package:nipaplay/models/watch_history_model.dart';
 import 'package:nipaplay/services/quark/quark_api_client.dart';
 import 'package:nipaplay/services/quark/quark_catalog_store.dart';
@@ -92,6 +93,7 @@ class QuarkService extends ChangeNotifier {
   QuarkAccount? _currentAccount;
   QuarkAccount? get currentAccount => _currentAccount;
   int _sessionGeneration = 0;
+  int get sessionGeneration => _sessionGeneration;
 
   bool get isLoggedIn => _currentAccount != null && _currentAccount!.isValid;
 
@@ -100,6 +102,9 @@ class QuarkService extends ChangeNotifier {
 
   // 缓存下载直链：fid -> (url, 过期时间)
   final Map<String, ({String url, DateTime expiresAt})> _urlCache = {};
+  final _playbackCache =
+      <String, ({QuarkPlaybackInfo info, DateTime expiresAt})>{};
+  final _playbackRequests = <String, Future<QuarkPlaybackInfo>>{};
 
   Future<void>? _initialization;
   final _catalogStore = QuarkCatalogStore();
@@ -249,11 +254,14 @@ class QuarkService extends ChangeNotifier {
   Future<void> loginWithCookie(String cookie) async {
     final credentials = cookie.trim();
     if (credentials.isEmpty) throw StateError('夸克登录凭证为空');
-    final generation = ++_sessionGeneration;
+    final validationGeneration = ++_sessionGeneration;
     _pausedScan = null;
     final verifiedCookie = await _client.validateSession(credentials);
-    _checkSession(generation);
+    _checkSession(validationGeneration);
+    final generation = ++_sessionGeneration;
     _urlCache.clear();
+    _playbackCache.clear();
+    _playbackRequests.clear();
     _currentAccount = QuarkAccount(
       id: 'quark_default',
       uid: _extractUidFromCookie(verifiedCookie),
@@ -282,6 +290,8 @@ class QuarkService extends ChangeNotifier {
     _publishCatalog();
     _scheduleAutoScan();
     _urlCache.clear();
+    _playbackCache.clear();
+    _playbackRequests.clear();
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_accountPrefsKey);
     notifyListeners();
@@ -348,7 +358,74 @@ class QuarkService extends ChangeNotifier {
     }
   }
 
-  /// 获取文件可播放/可下载的直链（带内存缓存，通常有效期 2 小时）
+  /// 播放时按文件获取并缓存夸克当前可用的清晰度。
+  Future<QuarkPlaybackInfo> getPlaybackInfo(
+    String fid, {
+    bool forceRefresh = false,
+  }) async {
+    final account = _currentAccount;
+    if (account == null || !account.isValid) {
+      throw StateError('未登录夸克网盘');
+    }
+
+    final cached = _playbackCache[fid];
+    if (!forceRefresh &&
+        cached != null &&
+        cached.expiresAt.isAfter(DateTime.now())) {
+      return cached.info;
+    }
+    final generation = _sessionGeneration;
+    final pending = _playbackRequests[fid] ??= _client
+        .getPlaybackInfo(cookie: account.cookie, fid: fid)
+        .then((info) {
+      _checkSession(generation);
+      _playbackCache.remove(fid);
+      if (_playbackCache.length >= 32) {
+        _playbackCache.remove(_playbackCache.keys.first);
+      }
+      _playbackCache[fid] = (
+        info: info,
+        expiresAt: DateTime.now().add(const Duration(minutes: 10)),
+      );
+      return info;
+    });
+    try {
+      return await pending;
+    } finally {
+      if (identical(_playbackRequests[fid], pending)) {
+        _playbackRequests.remove(fid);
+      }
+    }
+  }
+
+  Future<({String url, String cookie})> getPlaybackLink(
+    String fid, {
+    String? resolution,
+    bool forceRefresh = false,
+  }) async {
+    final generation = _sessionGeneration;
+    final info = await getPlaybackInfo(fid, forceRefresh: forceRefresh);
+    _checkSession(generation);
+    final variant = info.variantFor(resolution);
+    if (variant == null) {
+      if (resolution != null) throw StateError('夸克网盘未返回该清晰度的播放地址');
+      return getDownloadLink(fid, forceRefresh: forceRefresh);
+    }
+    final cookie = _currentAccount!.cookie;
+    final videoAuth = info.videoAuthCookie;
+    return (
+      url: variant.url.toString(),
+      cookie: videoAuth == null
+          ? cookie
+          : [
+              ...cookie.split(';').map((part) => part.trim()).where(
+                  (part) => part.isNotEmpty && !part.startsWith('Video-Auth=')),
+              videoAuth,
+            ].join('; '),
+    );
+  }
+
+  /// 获取文件下载直链，用于转码接口暂时没有可播档位的文件。
   Future<({String url, String cookie})> getDownloadLink(
     String fid, {
     bool forceRefresh = false,

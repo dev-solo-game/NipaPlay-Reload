@@ -800,6 +800,8 @@ class _PlayerMenuTabEntry {
         return '浏览并切换当前播放列表';
       case PlayerMenuPaneId.jellyfinQuality:
         return '选择服务器媒体源、转码质量和字幕';
+      case PlayerMenuPaneId.quarkQuality:
+        return '选择当前夸克视频的播放清晰度';
       case PlayerMenuPaneId.playbackInfo:
         return '查看当前媒体、弹幕和播放状态';
       case PlayerMenuPaneId.seekStep:

@@ -656,6 +656,72 @@ extension VideoPlayerStateStreaming on VideoPlayerState {
   }
 }
 
+extension QuarkQualitySwitch on VideoPlayerState {
+  Future<void> selectQuarkResolution(String resolution) async {
+    final path = _currentVideoPath;
+    final previous = _currentQuarkResolution;
+    if (_isDisposed ||
+        _switchingQuarkQuality ||
+        !hasVideo ||
+        path == null ||
+        previous == null ||
+        resolution == previous ||
+        !_quarkVideoVariants.any((variant) => variant.resolution == resolution)) {
+      return;
+    }
+
+    final positionMs = _position.inMilliseconds;
+    final paused = isPaused;
+    final volume = player.volume;
+    final detailContext = _playbackDetailContext;
+    final mediaKey = _currentMediaKey;
+    final history = WatchHistoryItem(
+      filePath: path,
+      animeName: _animeTitle ?? '',
+      episodeTitle: _episodeTitle,
+      episodeId: _episodeId,
+      animeId: _animeId,
+      lastPosition: positionMs,
+      duration: _duration.inMilliseconds,
+      watchProgress: _progress,
+      lastWatchTime: DateTime.now(),
+    );
+    final generation = _sourceResolutionGeneration + 1;
+    _switchingQuarkQuality = true;
+    _notifyListeners();
+    Future<void> open(String quality) => initializePlayer(
+          path,
+          historyItem: history,
+          playbackDetailContext: detailContext,
+          mediaKey: mediaKey,
+          resetManualDanmakuOffset: false,
+          episodeFileSelectionHandled: true,
+          quarkQualitySwitch: (
+            resolution: quality,
+            positionMs: positionMs,
+            paused: paused,
+          ),
+        );
+
+    try {
+      await open(resolution);
+      if (_isDisposed || _sourceResolutionGeneration != generation) return;
+      if (_error != null || !hasVideo) {
+        await open(previous);
+        if (!_isDisposed && _sourceResolutionGeneration == generation + 1) {
+          if (hasVideo && !_useSystemVolume) player.volume = volume;
+          throw StateError('无法切换夸克清晰度');
+        }
+      } else if (!_useSystemVolume) {
+        player.volume = volume;
+      }
+    } finally {
+      _switchingQuarkQuality = false;
+      if (!_isDisposed) _notifyListeners();
+    }
+  }
+}
+
 // ==== Jellyfin 清晰度切换：平滑重载当前流 ====
 // 说明：当侧栏清晰度设置被更改时调用，保留当前位置、播放/暂停、音量、倍速等状态
 extension JellyfinQualitySwitch on VideoPlayerState {

@@ -16,6 +16,7 @@ enum PlayerMenuPaneId {
   playbackRate,
   playlist,
   jellyfinQuality,
+  quarkQuality,
   playbackInfo,
   seekStep,
 }

@@ -5,6 +5,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nipaplay/models/quark/quark_file.dart';
 import 'package:nipaplay/services/quark/quark_api_client.dart';
+import 'package:nipaplay/services/quark/quark_proxy_service.dart';
 import 'package:nipaplay/utils/media_source_utils.dart';
 
 class _ResponseAdapter implements HttpClientAdapter {
@@ -64,6 +65,87 @@ void main() {
     }).toString();
     expect(MediaSourceUtils.parseQuarkPath(legacyUrl),
         (fid: 'video', fileName: fileName));
+  });
+
+  test('requests playback variants and keeps only accessible links', () async {
+    final adapter = _ResponseAdapter({
+      'status': 200,
+      'code': 0,
+      'data': {
+        'default_resolution': 'high',
+        'video_list': [
+          {
+            'resolution': 'super',
+            'accessable': true,
+            'trans_status': 'transcoding'
+          },
+          {
+            'resolution': 'high',
+            'accessable': true,
+            'video_info': {'url': 'https://cdn.quark.cn/high', 'height': 540},
+          },
+          {
+            'resolution': 'low',
+            'video_info': {'url': 'https://cdn.quark.cn/low', 'height': 270},
+          },
+          {
+            'resolution': '4k',
+            'accessable': false,
+            'video_info': {
+              'url': 'https://cdn.quark.cn/blocked',
+              'height': 2160
+            },
+          },
+        ],
+      },
+    }, cookies: [
+      'Video-Auth=video-token; Domain=quark.cn'
+    ]);
+    dio.httpClientAdapter = adapter;
+
+    final result = await client.getPlaybackInfo(cookie: cookie, fid: 'video');
+
+    expect(adapter.request.method, 'POST');
+    expect(adapter.request.uri.path, '/1/clouddrive/file/v2/play');
+    expect(adapter.request.data, {
+      'fid': 'video',
+      'resolutions': 'low,normal,high,super,2k,4k',
+      'supports': 'fmp4_av,m3u8,dolby_vision',
+    });
+    expect(result.variants.map((variant) => variant.label), ['540p', '270p']);
+    expect(result.variantFor(null)?.resolution, 'high');
+    expect(result.variantFor('low')?.url.path, '/low');
+    expect(result.variantFor('super'), isNull);
+    expect(result.videoAuthCookie, 'Video-Auth=video-token');
+
+    final proxyUrl = QuarkProxyService.instance
+        .buildStreamUrl('video', fileName: 'video.mp4', resolution: 'low');
+    expect(Uri.parse(proxyUrl).queryParameters['resolution'], 'low');
+    expect(MediaSourceUtils.parseQuarkPath(proxyUrl)?.fid, 'video');
+  });
+
+  test('rewrites relative segments and URI attributes in HLS manifests', () {
+    const playlist = '#EXTM3U\n'
+        '#EXT-X-KEY:METHOD=AES-128,URI="../key?token=1"\n'
+        '#EXT-X-MAP:URI="/init.mp4"\n'
+        '#EXTINF:2.0,\n'
+        'seg.ts?token=2\n';
+    final resolved = <Uri>[];
+    final rewritten = rewriteQuarkHlsPlaylist(
+      playlist,
+      Uri.parse('https://cdn.quark.cn/video/index.m3u8'),
+      (uri) {
+        resolved.add(uri);
+        return '/quark/hls/session/${resolved.length}';
+      },
+    );
+    expect(resolved.map((uri) => uri.toString()), [
+      'https://cdn.quark.cn/key?token=1',
+      'https://cdn.quark.cn/init.mp4',
+      'https://cdn.quark.cn/video/seg.ts?token=2',
+    ]);
+    expect(rewritten, contains('METHOD=AES-128,URI="/quark/hls/session/1"'));
+    expect(rewritten, contains('#EXTINF:2.0,\n/quark/hls/session/3\n'));
   });
 
   test('sends a GET query to list the root and decodes files and folders',

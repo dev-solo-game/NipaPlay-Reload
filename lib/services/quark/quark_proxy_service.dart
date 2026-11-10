@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:nipaplay/services/quark/quark_api_client.dart';
 import 'package:nipaplay/services/quark/quark_service.dart';
@@ -7,6 +9,39 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart' as shelf_io;
 import 'package:shelf_router/shelf_router.dart';
+import 'package:uuid/uuid.dart';
+
+class _QuarkHlsSession {
+  _QuarkHlsSession(this.generation, this.cookie);
+
+  final int generation;
+  final String cookie;
+  final resources = <Uri>[];
+  final _indices = <Uri, int>{};
+
+  int indexOf(Uri uri) => _indices.putIfAbsent(uri, () {
+        resources.add(uri);
+        return resources.length - 1;
+      });
+}
+
+@visibleForTesting
+String rewriteQuarkHlsPlaylist(
+  String playlist,
+  Uri upstream,
+  String Function(Uri) proxyUrl,
+) {
+  final uriAttribute = RegExp(r'\bURI="([^"]+)"');
+  final lines = const LineSplitter().convert(playlist).map((line) {
+    final value = line.trim();
+    if (value.isEmpty) return line;
+    if (!value.startsWith('#')) return proxyUrl(upstream.resolve(value));
+    return line.replaceAllMapped(uriAttribute, (match) {
+      return 'URI="${proxyUrl(upstream.resolve(match[1]!))}"';
+    });
+  });
+  return '${lines.join('\n')}\n';
+}
 
 /// 夸克网盘本地流媒体代理服务
 ///
@@ -21,6 +56,7 @@ class QuarkProxyService {
   HttpServer? _server;
   int _port = 0;
   bool _isRunning = false;
+  final _hlsSessions = <String, _QuarkHlsSession>{};
 
   bool get isRunning => _isRunning;
   int get port => _port;
@@ -43,6 +79,8 @@ class QuarkProxyService {
     final router = Router()
       ..add('HEAD', '/quark/stream', _handleStreamHead)
       ..add('GET', '/quark/stream', _handleStream)
+      ..add('HEAD', '/quark/hls/<session>/<resource>', _handleHlsResource)
+      ..add('GET', '/quark/hls/<session>/<resource>', _handleHlsResource)
       ..get('/quark/health', (Request request) => Response.ok('ok'));
 
     final handler = const Pipeline().addHandler(router.call);
@@ -84,12 +122,16 @@ class QuarkProxyService {
     _server = null;
     _port = 0;
     _isRunning = false;
+    _hlsSessions.clear();
   }
 
   /// 为指定 fid 构造本地播放代理 URL
-  String buildStreamUrl(String fid, {String? fileName}) {
+  String buildStreamUrl(String fid, {String? fileName, String? resolution}) {
     final resolvedPort = _port > 0 ? _port : _defaultPort;
-    final query = <String, String>{'fid': fid};
+    final query = <String, String>{
+      'fid': fid,
+      if (resolution != null) 'resolution': resolution,
+    };
     if (fileName != null && fileName.isNotEmpty) {
       query['file'] = fileName;
     }
@@ -120,98 +162,208 @@ class QuarkProxyService {
       return Response(HttpStatus.badRequest, body: 'Missing fid parameter');
     }
 
-    final rangeHeader = request.headers['range'];
-    final method = headOnly ? 'HEAD' : 'GET';
+    final resolution = request.url.queryParameters['resolution'];
+    final service = QuarkService.instance;
+    final generation = service.sessionGeneration;
 
-    // 尝试获取或刷新直链（最多重试2次）
     for (int attempt = 1; attempt <= 2; attempt++) {
+      if (generation != service.sessionGeneration) break;
       final ({String url, String cookie}) link;
       try {
-        link = await QuarkService.instance.getDownloadLink(
+        link = await service.getPlaybackLink(
           fid,
+          resolution: resolution,
           forceRefresh: attempt > 1,
         );
       } catch (e) {
-        debugPrint('QuarkProxy: 获取下载直链失败 (attempt $attempt): $e');
-        if (attempt == 2) {
-          return Response(HttpStatus.internalServerError,
-              body: 'Failed to fetch download url: $e');
-        }
-        continue;
+        debugPrint('QuarkProxy: 获取播放地址失败: ${e.runtimeType}');
+        return Response(HttpStatus.badGateway,
+            body: 'Failed to fetch playback URL');
       }
-
-      final client = HttpClient()
-        ..connectionTimeout = const Duration(seconds: 15)
-        ..autoUncompress = false;
-
-      var handedToStream = false;
       try {
-        final targetUri = Uri.parse(link.url);
-        final upstreamReq = await client.openUrl(method, targetUri);
-        upstreamReq.followRedirects = true;
-        upstreamReq.headers.set(
-          HttpHeaders.userAgentHeader,
-          QuarkApiClient.downloadUserAgent,
+        final response = await _proxyUpstream(
+          request,
+          Uri.parse(link.url),
+          _QuarkHlsSession(generation, link.cookie),
+          headOnly: headOnly,
+          refreshOnExpiry: attempt == 1,
         );
-        upstreamReq.headers.set(HttpHeaders.refererHeader, QuarkApiClient.panUrl);
-        if (targetUri.scheme == 'https' &&
-            (targetUri.host == 'quark.cn' || targetUri.host.endsWith('.quark.cn'))) {
-          upstreamReq.headers.set(HttpHeaders.cookieHeader, link.cookie);
-        }
-        upstreamReq.headers.set(HttpHeaders.acceptHeader, '*/*');
-        if (rangeHeader != null) {
-          upstreamReq.headers.set(HttpHeaders.rangeHeader, rangeHeader);
-        }
-
-        final upstreamResp =
-            await upstreamReq.close().timeout(const Duration(seconds: 30));
-
-        // 如果鉴权失败或直链已失效，且是第一次尝试，则强制刷新直链重试
-        if ((upstreamResp.statusCode == HttpStatus.forbidden ||
-                upstreamResp.statusCode == HttpStatus.unauthorized ||
-                upstreamResp.statusCode == HttpStatus.gone) &&
-            attempt == 1) {
-          continue;
-        }
-
-        final responseHeaders = <String, String>{
-          'Accept-Ranges': 'bytes',
-          'Access-Control-Allow-Origin': '*',
-        };
-
-        void passHeader(String name) {
-          final val = upstreamResp.headers.value(name);
-          if (val != null) responseHeaders[name] = val;
-        }
-
-        passHeader('Content-Type');
-        passHeader('Content-Length');
-        passHeader('Content-Range');
-        passHeader('ETag');
-        passHeader('Last-Modified');
-
-        if (headOnly) {
-          return Response(upstreamResp.statusCode, headers: responseHeaders);
-        }
-
-        handedToStream = true;
-        return Response(
-          upstreamResp.statusCode,
-          headers: responseHeaders,
-          body: _bindClientToStream(upstreamResp, client),
-        );
+        if (response != null) return response;
       } catch (_) {
-        if (attempt == 2) {
-          return Response(HttpStatus.badGateway, body: 'Upstream request failed');
-        }
-      } finally {
-        if (!handedToStream) {
-          client.close(force: true);
-        }
+        if (attempt == 2) break;
       }
     }
 
-    return Response(HttpStatus.badGateway, body: 'Failed to proxy media stream');
+    return Response(HttpStatus.badGateway,
+        body: 'Failed to proxy media stream');
+  }
+
+  Future<Response> _handleHlsResource(
+    Request request,
+    String sessionId,
+    String resource,
+  ) async {
+    final session = _hlsSessions[sessionId];
+    final index = int.tryParse(resource.split('.').first);
+    if (session == null ||
+        session.generation != QuarkService.instance.sessionGeneration ||
+        index == null ||
+        index < 0 ||
+        index >= session.resources.length) {
+      return Response.notFound('Unknown HLS resource');
+    }
+    _hlsSessions.remove(sessionId);
+    _hlsSessions[sessionId] = session;
+    try {
+      return (await _proxyUpstream(
+        request,
+        session.resources[index],
+        session,
+        headOnly: request.method == 'HEAD',
+        sessionId: sessionId,
+      ))!;
+    } catch (_) {
+      return Response(HttpStatus.badGateway, body: 'HLS request failed');
+    }
+  }
+
+  static bool _isQuarkHttps(Uri uri) =>
+      uri.scheme == 'https' &&
+      (uri.host == 'quark.cn' || uri.host.endsWith('.quark.cn'));
+
+  Future<Response?> _proxyUpstream(
+    Request request,
+    Uri target,
+    _QuarkHlsSession session, {
+    required bool headOnly,
+    bool refreshOnExpiry = false,
+    String? sessionId,
+    bool forwardRange = true,
+  }) async {
+    final client = HttpClient()
+      ..connectionTimeout = const Duration(seconds: 15)
+      ..autoUncompress = false;
+    var handedToStream = false;
+    try {
+      final upstream = await client.openUrl(headOnly ? 'HEAD' : 'GET', target);
+      upstream.headers
+          .set(HttpHeaders.userAgentHeader, QuarkApiClient.downloadUserAgent);
+      upstream.headers.set(HttpHeaders.refererHeader, QuarkApiClient.panUrl);
+      upstream.headers.set(HttpHeaders.acceptEncodingHeader, 'identity');
+      upstream.headers.set(HttpHeaders.acceptHeader, '*/*');
+      if (_isQuarkHttps(target)) {
+        upstream.headers.set(HttpHeaders.cookieHeader, session.cookie);
+      }
+      final range = request.headers['range'];
+      if (forwardRange && range != null) {
+        upstream.headers.set(HttpHeaders.rangeHeader, range);
+      }
+
+      final response =
+          await upstream.close().timeout(const Duration(seconds: 30));
+      final status = response.statusCode;
+      if (refreshOnExpiry &&
+          (status == HttpStatus.forbidden ||
+              status == HttpStatus.unauthorized ||
+              status == HttpStatus.gone)) {
+        return null;
+      }
+
+      final effectiveUri = response.redirects.fold(
+        target,
+        (uri, redirect) => uri.resolveUri(redirect.location),
+      );
+      final isPlaylist = (status == HttpStatus.ok ||
+              status == HttpStatus.partialContent) &&
+          (response.headers.contentType?.mimeType.contains('mpegurl') == true ||
+              effectiveUri.path.toLowerCase().endsWith('.m3u8'));
+      if (isPlaylist) {
+        if (!headOnly && status == HttpStatus.partialContent) {
+          if (!forwardRange || range == null) {
+            throw const FormatException('Incomplete HLS playlist');
+          }
+          client.close(force: true);
+          return await _proxyUpstream(
+            request,
+            target,
+            session,
+            headOnly: false,
+            refreshOnExpiry: refreshOnExpiry,
+            sessionId: sessionId,
+            forwardRange: false,
+          );
+        }
+        return await _proxyPlaylist(
+          response,
+          effectiveUri,
+          session,
+          sessionId,
+          headOnly,
+        );
+      }
+
+      final responseHeaders = <String, String>{
+        'Accept-Ranges': 'bytes',
+        'Access-Control-Allow-Origin': '*',
+      };
+      for (final name in [
+        'Content-Type',
+        'Content-Length',
+        'Content-Range',
+        'ETag',
+        'Last-Modified'
+      ]) {
+        final value = response.headers.value(name);
+        if (value != null) responseHeaders[name] = value;
+      }
+      if (headOnly) return Response(status, headers: responseHeaders);
+
+      handedToStream = true;
+      return Response(status,
+          headers: responseHeaders,
+          body: _bindClientToStream(response, client));
+    } finally {
+      if (!handedToStream) client.close(force: true);
+    }
+  }
+
+  Future<Response> _proxyPlaylist(
+    HttpClientResponse response,
+    Uri upstream,
+    _QuarkHlsSession session,
+    String? sessionId,
+    bool headOnly,
+  ) async {
+    const headers = {
+      'Content-Type': 'application/vnd.apple.mpegurl',
+      'Access-Control-Allow-Origin': '*',
+    };
+    if (headOnly) return Response.ok(null, headers: headers);
+
+    final bytes = BytesBuilder(copy: false);
+    await for (final chunk in response.timeout(const Duration(seconds: 30))) {
+      bytes.add(chunk);
+      if (bytes.length > 4 * 1024 * 1024) {
+        throw const FormatException('HLS playlist exceeds size limit');
+      }
+    }
+    final playlist = utf8.decode(bytes.takeBytes());
+    final id = sessionId ?? const Uuid().v4();
+    final content = rewriteQuarkHlsPlaylist(playlist, upstream, (uri) {
+      if (!_isQuarkHttps(uri)) {
+        throw const FormatException('Unexpected HLS resource origin');
+      }
+      final extension =
+          RegExp(r'\.[a-zA-Z0-9]{1,8}$').stringMatch(uri.path) ?? '';
+      return '/quark/hls/$id/${session.indexOf(uri)}$extension';
+    });
+    if (sessionId == null) {
+      if (_hlsSessions.length >= 16) {
+        _hlsSessions.remove(_hlsSessions.keys.first);
+      }
+      _hlsSessions[id] = session;
+    }
+    return Response.ok(content, headers: headers);
   }
 
   Stream<List<int>> _bindClientToStream(

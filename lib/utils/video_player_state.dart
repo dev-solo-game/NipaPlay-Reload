@@ -134,6 +134,9 @@ import 'player_kernel_manager.dart'; // 导入播放器内核管理器
 import 'shared_remote_history_helper.dart';
 import 'package:nipaplay/utils/watch_history_auto_match_helper.dart';
 import 'media_source_utils.dart';
+import 'package:nipaplay/models/quark/quark_playback_info.dart';
+import 'package:nipaplay/services/quark/quark_proxy_service.dart';
+import 'package:nipaplay/services/quark/quark_service.dart';
 import 'package:nipaplay/l10n/app_locale_utils.dart';
 
 part 'video_player_state/video_player_state_metadata.dart';
@@ -450,6 +453,9 @@ class VideoPlayerState extends ChangeNotifier implements WindowListener {
   double _aspectRatio = 16 / 9; // 默认16:9，但会根据视频实际比例更新
   String? _currentVideoPath;
   String? _currentActualPlayUrl; // 存储实际播放URL，用于判断转码状态
+  List<QuarkVideoVariant> _quarkVideoVariants = const [];
+  String? _currentQuarkResolution;
+  bool _switchingQuarkQuality = false;
   PlaybackSession? _currentPlaybackSession;
   EmbyResolvedTrackBundle? _currentEmbyTrackSelection;
   String? _currentEmbyAccountKey;
@@ -1711,6 +1717,9 @@ int _exactEndStreak = 0;
   String? get currentVideoPath => _currentVideoPath;
   String? get currentMediaKey => _currentMediaKey;
   String? get currentActualPlayUrl => _currentActualPlayUrl; // 当前实际播放URL
+  List<QuarkVideoVariant> get quarkVideoVariants => _quarkVideoVariants;
+  String? get currentQuarkResolution => _currentQuarkResolution;
+  bool get switchingQuarkQuality => _switchingQuarkQuality;
 
   /// 当前已解析的媒体源 URL（实际播放地址优先，回退视频路径）；
   /// 截图/GIF 导出等需要直链的功能使用。

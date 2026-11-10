@@ -14,6 +14,7 @@ import 'playlist_menu.dart';
 import 'playback_rate_menu.dart';
 import 'danmaku_offset_menu.dart';
 import 'jellyfin_quality_menu.dart';
+import 'quark_quality_options.dart';
 import 'playback_info_menu.dart';
 import 'seek_step_menu.dart';
 import 'package:nipaplay/player_menu/player_menu_definition_builder.dart';
@@ -341,6 +342,8 @@ class VideoSettingsMenuState extends State<VideoSettingsMenu>
         return 8;
       case PlayerMenuPaneId.jellyfinQuality:
         return 9;
+      case PlayerMenuPaneId.quarkQuality:
+        return _boundedListItemCount(videoState.quarkVideoVariants.length);
       case PlayerMenuPaneId.playbackInfo:
         return 8;
       case PlayerMenuPaneId.seekStep:
@@ -444,6 +447,14 @@ class VideoSettingsMenuState extends State<VideoSettingsMenu>
         child = JellyfinQualityMenu(
           onClose: onPaneClose,
           onHoverChanged: widget.onHoverChanged,
+        );
+        break;
+      case PlayerMenuPaneId.quarkQuality:
+        child = BaseSettingsMenu(
+          title: '清晰度',
+          onClose: onPaneClose,
+          onHoverChanged: widget.onHoverChanged,
+          content: QuarkQualityOptions(videoState: videoState),
         );
         break;
       case PlayerMenuPaneId.playbackInfo:

@@ -780,6 +780,8 @@ extension VideoPlayerStatePlaybackControls on VideoPlayerState {
     _currentVideoPath = null;
     _currentMediaKey = null;
     _currentActualPlayUrl = null; // 清除实际播放URL
+    _quarkVideoVariants = const [];
+    _currentQuarkResolution = null;
     _currentPlaybackSession = null;
     _currentEmbyAccountKey = null;
     _lastPlaybackStartMs = 0;

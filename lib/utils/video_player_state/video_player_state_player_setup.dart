@@ -29,6 +29,7 @@ extension VideoPlayerStatePlayerSetup on VideoPlayerState {
     bool preserveEmbyAccountKey = false,
     bool manualMatchHandled = false,
     bool episodeFileSelectionHandled = false,
+    ({String resolution, int positionMs, bool paused})? quarkQualitySwitch,
   }) async {
     final resolutionGeneration = ++_sourceResolutionGeneration;
     final previousPlaybackGeneration = _playbackGeneration;
@@ -367,7 +368,29 @@ extension VideoPlayerStatePlayerSetup on VideoPlayerState {
                   ? proxyUrl
                   : resolvedActualPlayUrl;
         } else if (isQuarkStream) {
-          resolvedActualPlayUrl = await MediaSourceUtils.resolveQuarkPathToUrlInitialized(videoPath);
+          final parsed = MediaSourceUtils.parseQuarkPath(videoPath);
+          if (kIsWeb || parsed == null || parsed.fid.isEmpty) {
+            throw StateError('无效的夸克文件路径');
+          }
+          final service = QuarkService.instance;
+          await service.initialize();
+          final info = await service.getPlaybackInfo(parsed.fid);
+          final selected = info.variantFor(quarkQualitySwitch?.resolution);
+          if (quarkQualitySwitch != null && selected == null) {
+            throw StateError('夸克网盘未返回该清晰度的播放地址');
+          }
+          final proxy = QuarkProxyService.instance;
+          await proxy.initialize();
+          if (_isDisposed || initializationGeneration != _playbackGeneration) {
+            return;
+          }
+          _quarkVideoVariants = info.variants;
+          _currentQuarkResolution = selected?.resolution;
+          resolvedActualPlayUrl = proxy.buildStreamUrl(
+            parsed.fid,
+            fileName: parsed.fileName,
+            resolution: selected?.resolution,
+          );
         } else if (MediaSourceUtils.isNewSmbPath(videoPath) &&
             (resolvedActualPlayUrl == null ||
                 resolvedActualPlayUrl.isEmpty)) {
@@ -852,7 +875,8 @@ extension VideoPlayerStatePlayerSetup on VideoPlayerState {
       }
 
       // 获取上次播放位置
-      final lastPosition = await _getVideoPosition(videoPath);
+      final lastPosition = quarkQualitySwitch?.positionMs ??
+          await _getVideoPosition(videoPath);
       debugPrint(
         'VideoPlayerState: lastPosition for $videoPath = $lastPosition (raw value from _getVideoPosition)',
       );
@@ -1220,7 +1244,13 @@ extension VideoPlayerStatePlayerSetup on VideoPlayerState {
       }
 
       //debugPrint('12. 设置最终播放状态 (在可能的横屏切换之后)...');
-      if (lastPosition == 0) {
+      if (quarkQualitySwitch?.paused == true) {
+        await player.pauseDirectly();
+        if (_isDisposed || initializationGeneration != _playbackGeneration) {
+          return;
+        }
+        _setStatus(PlayerStatus.paused, message: '已暂停');
+      } else if (lastPosition == 0) {
         // 从头播放
         play(); // Call our central play method
       } else {

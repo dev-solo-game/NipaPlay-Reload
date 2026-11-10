@@ -1,4 +1,5 @@
 import 'package:nipaplay/player_menu/player_menu_models.dart';
+import 'package:nipaplay/utils/media_source_utils.dart';
 
 class PlayerMenuDefinitionBuilder {
   final PlayerMenuContext context;
@@ -94,6 +95,16 @@ class PlayerMenuDefinitionBuilder {
         title: '清晰度',
         visibilityPredicate: (ctx) =>
             ctx.isServerStreaming && ctx.isTranscodeEnabledForCurrentSource,
+      ),
+      PlayerMenuItemDefinition(
+        paneId: PlayerMenuPaneId.quarkQuality,
+        category: PlayerMenuCategory.streaming,
+        icon: PlayerMenuIconToken.jellyfinQuality,
+        title: '清晰度',
+        visibilityPredicate: (ctx) =>
+            ctx.hasVideo &&
+            MediaSourceUtils.isQuarkPath(ctx.videoState.currentVideoPath ?? '') &&
+            ctx.videoState.quarkVideoVariants.length > 1,
       ),
       PlayerMenuItemDefinition(
         paneId: PlayerMenuPaneId.playbackInfo,
